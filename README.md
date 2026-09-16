@@ -46,7 +46,7 @@ Hãy bổ sung database driver và Flyway database support phù hợp vào đún
 - `docs/architecture`: Tài liệu kiến trúc và quyết định kỹ thuật.
 - `docs/development`: Quy chuẩn code và hướng dẫn phát triển.
 - `scripts`: Script phục vụ phát triển và vận hành.
-- `templates/service-template`: Template để tạo service mới theo cùng cấu trúc với `tenant-service`.
+- `templates/service-template`: Template để tạo service mới theo cùng cấu trúc chuẩn.
 - `infrastructure/gateway`: Mẫu Kong Gateway OSS với custom OPA authorizer cho authorization tại edge.
 
 Chạy toàn bộ reactor trên Windows:
