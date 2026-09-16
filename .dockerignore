@@ -1,0 +1,6 @@
+.git
+.idea
+**/target
+**/.env
+**/.m2
+**/.validation-m2

@@ -1,0 +1,67 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: identity-public-service
+    host: identity-service
+    port: 8080
+    protocol: http
+    routes:
+      - name: identity-public-route
+        paths:
+          - /api/identity/auth
+        strip_path: false
+
+  - name: tenant-service
+    host: tenant-service
+    port: 8080
+    protocol: http
+    routes:
+      - name: tenant-service-route
+        paths:
+          - /api/tenants
+        strip_path: false
+    plugins:
+      - name: opa-authorizer
+        config:
+          opa_url: http://opa:8181/v1/data/saas/authz/decision
+          forward_headers:
+            - x-authenticated-subject
+            - x-authenticated-tenant
+            - x-authenticated-role
+
+  - name: billing-service
+    host: billing-service
+    port: 8080
+    protocol: http
+    routes:
+      - name: billing-service-route
+        paths:
+          - /api/billing
+        strip_path: false
+    plugins:
+      - name: opa-authorizer
+        config:
+          opa_url: http://opa:8181/v1/data/saas/authz/decision
+          forward_headers:
+            - x-authenticated-subject
+            - x-authenticated-tenant
+            - x-authenticated-role
+
+  - name: notification-service
+    host: notification-service
+    port: 8080
+    protocol: http
+    routes:
+      - name: notification-service-route
+        paths:
+          - /api/notifications
+        strip_path: false
+    plugins:
+      - name: opa-authorizer
+        config:
+          opa_url: http://opa:8181/v1/data/saas/authz/decision
+          forward_headers:
+            - x-authenticated-subject
+            - x-authenticated-tenant
+            - x-authenticated-role

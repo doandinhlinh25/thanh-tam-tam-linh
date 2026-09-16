@@ -1,0 +1,5 @@
+Project notification_service {
+  Note: 'Database schema owned only by notification-service.'
+}
+
+// Define notification, delivery and preference-related tables here.

@@ -1,0 +1,5 @@
+Project billing_service {
+  Note: 'Database schema owned only by billing-service.'
+}
+
+// Define subscription, invoice and payment-related tables here.

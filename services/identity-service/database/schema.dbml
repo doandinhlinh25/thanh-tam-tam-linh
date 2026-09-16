@@ -1,0 +1,5 @@
+Project identity_service {
+  Note: 'Database schema owned only by identity-service.'
+}
+
+// Define credential, user and authentication-related tables here.

@@ -1,0 +1,12 @@
+services:
+  application:
+    build:
+      context: ../..
+      dockerfile: services/identity-service/Dockerfile
+      args:
+        MODULE_PATH: services/identity-service
+        MODULE_ARTIFACT: identity-service
+    env_file:
+      - .env
+    ports:
+      - "${HOST_PORT}:${SERVER_PORT}"

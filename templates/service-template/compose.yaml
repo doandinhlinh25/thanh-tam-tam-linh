@@ -1,0 +1,12 @@
+services:
+  application:
+    build:
+      context: ../..
+      dockerfile: services/__SERVICE_NAME__/Dockerfile
+      args:
+        MODULE_PATH: services/__SERVICE_NAME__
+        MODULE_ARTIFACT: __SERVICE_NAME__
+    env_file:
+      - .env
+    ports:
+      - "${HOST_PORT}:${SERVER_PORT}"

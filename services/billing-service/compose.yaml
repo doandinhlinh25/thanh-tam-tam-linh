@@ -1,0 +1,12 @@
+services:
+  application:
+    build:
+      context: ../..
+      dockerfile: services/billing-service/Dockerfile
+      args:
+        MODULE_PATH: services/billing-service
+        MODULE_ARTIFACT: billing-service
+    env_file:
+      - .env
+    ports:
+      - "${HOST_PORT}:${SERVER_PORT}"

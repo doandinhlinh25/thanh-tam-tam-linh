@@ -1,0 +1,5 @@
+Project tenant_service {
+  Note: 'Database schema owned only by tenant-service, including user-tenant membership.'
+}
+
+// Store identity user IDs as external references; do not create cross-service foreign keys.

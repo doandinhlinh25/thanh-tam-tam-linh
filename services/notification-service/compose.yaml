@@ -1,0 +1,12 @@
+services:
+  application:
+    build:
+      context: ../..
+      dockerfile: services/notification-service/Dockerfile
+      args:
+        MODULE_PATH: services/notification-service
+        MODULE_ARTIFACT: notification-service
+    env_file:
+      - .env
+    ports:
+      - "${HOST_PORT}:${SERVER_PORT}"
