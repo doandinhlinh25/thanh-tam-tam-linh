@@ -1,0 +1,40 @@
+openapi: 3.0.3
+info:
+  title: Shared API response contract
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    ApiErrorResponse:
+      type: object
+      required: [errorCode, errorMessage, fieldErrors]
+      properties:
+        errorCode:
+          type: string
+        errorMessage:
+          type: string
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+    ApiSuccessResponse:
+      type: object
+      required: [successful, data, error]
+      properties:
+        successful:
+          type: boolean
+          enum: [true]
+        data: {}
+        error:
+          nullable: true
+    ApiFailureResponse:
+      type: object
+      required: [successful, data, error]
+      properties:
+        successful:
+          type: boolean
+          enum: [false]
+        data:
+          nullable: true
+        error:
+          $ref: '#/components/schemas/ApiErrorResponse'

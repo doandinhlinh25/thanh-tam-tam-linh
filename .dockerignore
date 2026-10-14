@@ -1,6 +1,5 @@
 .git
 .idea
-**/target
 **/.env
-**/.m2
-**/.validation-m2
+node_modules
+**/dist

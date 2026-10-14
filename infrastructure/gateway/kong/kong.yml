@@ -25,10 +25,6 @@ services:
       - name: opa-authorizer
         config:
           opa_url: http://opa:8181/v1/data/saas/authz/decision
-          forward_headers:
-            - x-authenticated-subject
-            - x-authenticated-tenant
-            - x-authenticated-role
 
   - name: billing-service
     host: billing-service
@@ -43,10 +39,6 @@ services:
       - name: opa-authorizer
         config:
           opa_url: http://opa:8181/v1/data/saas/authz/decision
-          forward_headers:
-            - x-authenticated-subject
-            - x-authenticated-tenant
-            - x-authenticated-role
 
   - name: notification-service
     host: notification-service
@@ -61,7 +53,3 @@ services:
       - name: opa-authorizer
         config:
           opa_url: http://opa:8181/v1/data/saas/authz/decision
-          forward_headers:
-            - x-authenticated-subject
-            - x-authenticated-tenant
-            - x-authenticated-role

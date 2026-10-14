@@ -1,5 +1,0 @@
-Project service_template {
-  Note: 'Replace this project name. The database is owned only by this service.'
-}
-
-// Define tables for this service only. Do not create cross-service foreign keys.

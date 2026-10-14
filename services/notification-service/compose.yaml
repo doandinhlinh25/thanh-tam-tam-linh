@@ -1,12 +1,17 @@
 services:
-  application:
+  notification-service:
     build:
       context: ../..
-      dockerfile: services/notification-service/Dockerfile
+      dockerfile: infrastructure/node/Dockerfile
       args:
-        MODULE_PATH: services/notification-service
-        MODULE_ARTIFACT: notification-service
-    env_file:
-      - .env
+        SERVICE_PACKAGE: "@saas/notification-service"
+    environment:
+      PORT: ${PORT}
     ports:
-      - "${HOST_PORT}:${SERVER_PORT}"
+      - "${HOST_PORT}:${PORT}"
+    networks:
+      - saas-gateway
+
+networks:
+  saas-gateway:
+    external: true

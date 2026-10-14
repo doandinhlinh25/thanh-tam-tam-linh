@@ -1,0 +1,17 @@
+services:
+  __SERVICE_NAME__:
+    build:
+      context: ../..
+      dockerfile: infrastructure/node/Dockerfile
+      args:
+        SERVICE_PACKAGE: "@saas/__SERVICE_NAME__"
+    environment:
+      PORT: ${PORT}
+    ports:
+      - "${HOST_PORT}:${PORT}"
+    networks:
+      - saas-gateway
+
+networks:
+  saas-gateway:
+    external: true

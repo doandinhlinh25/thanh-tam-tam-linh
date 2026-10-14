@@ -1,0 +1,17 @@
+{
+  "name": "@saas/http",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@saas/common": "1.0.0",
+    "dotenv": "^16.0.0",
+    "express": "^5.0.0"
+  }
+}

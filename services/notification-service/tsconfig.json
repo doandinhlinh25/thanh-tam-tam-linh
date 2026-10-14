@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist"
+  },
+  "include": ["index.ts", "configs/**/*.ts", "controllers/**/*.ts", "dto/**/*.ts", "exceptions/**/*.ts", "helpers/**/*.ts", "interface/**/*.ts", "middlewares/**/*.ts", "models/**/*.ts", "repositories/**/*.ts", "routes/**/*.ts", "services/**/*.ts"]
+}

@@ -1,0 +1,5 @@
+Project service_schema {
+  Note: 'Database schema owned only by __SERVICE_NAME__.'
+}
+
+// Define tables owned by this service here.

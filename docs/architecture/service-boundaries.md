@@ -18,10 +18,16 @@
 
 Thư mục `contracts/openapi` chỉ chứa hợp đồng giao tiếp. Khi cần client hoặc DTO, hãy sinh mã từ contract cho từng service thay vì tạo một thư viện domain dùng chung.
 
-`libraries/common-lib` chỉ được chứa DTO kỹ thuật dùng chung, hiện tại là response envelope. Không đưa entity, repository, service, business rule, database driver hoặc persistence code vào thư viện này.
+`packages/common` chỉ chứa DTO và formatter kỹ thuật dùng chung. `packages/http` chứa phần HTTP dùng chung. Không đưa entity, repository, business rule, database driver hoặc persistence code vào các package này.
 
 ## Database migrations
 
-Mỗi business service sở hữu database dùng Flyway và chỉ đọc migration từ `src/main/resources/db/migration` của module mình. Migration không được dùng chung, không được di chuyển giữa các service và không được chạy bằng kết nối tới database của service khác.
+Mỗi business service sở hữu migration trong `database/migrations` của chính mình. Chọn công cụ migration khi chọn database engine; migration không được dùng chung, không được di chuyển giữa các service và không được chạy bằng kết nối tới database của service khác.
 
 Mỗi service lưu sơ đồ dbdiagram.io tại `database/schema.dbml`. DBML mô tả database của service đó và không được tham chiếu bảng của service khác.
+
+## Mở rộng cho MVP RAG
+
+`identity-service` sẽ triển khai xác thực user và session. `tenant-service` sẽ sở hữu tenant, membership, course, enrollment và quyền theo course. `document-service` dự kiến sở hữu document, chunk, embedding và trạng thái ingestion; worker xử lý queue theo cùng ranh giới sở hữu này. `chat-service` dự kiến sở hữu conversation, message, citation và feedback, đồng thời điều phối RAG trong MVP. Nếu tách RAG thành service riêng về sau, cần chốt API và quyền truy cập dữ liệu trước khi tách.
+
+`billing-service` và `notification-service` hiện chỉ có health endpoint; thanh toán thực nằm ngoài MVP. Không chuyển bảng subscription sang `tenant-service` chỉ vì tính năng billing chưa triển khai. Các service mới được thêm vào `services/` khi bắt đầu code, dùng `templates/node-service-template`. `apps/web` và `ai/` chỉ tạo khi có frontend và pipeline Python thực tế. Sổ tay thiết kế tại `docs/documents/AI01_Handbook_RAG_SaaS_Microservices_Custom_Auth_v2 (1).md` mô tả lộ trình và tiêu chí nghiệm thu.

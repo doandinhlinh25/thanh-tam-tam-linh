@@ -1,0 +1,42 @@
+x-service-base: &service-base
+  environment:
+    PORT: ${SERVICE_PORT}
+  networks:
+    - saas-gateway
+
+services:
+  identity-service:
+    <<: *service-base
+    build:
+      context: ../..
+      dockerfile: infrastructure/node/Dockerfile
+      args:
+        SERVICE_PACKAGE: "@saas/identity-service"
+
+  tenant-service:
+    <<: *service-base
+    build:
+      context: ../..
+      dockerfile: infrastructure/node/Dockerfile
+      args:
+        SERVICE_PACKAGE: "@saas/tenant-service"
+
+  billing-service:
+    <<: *service-base
+    build:
+      context: ../..
+      dockerfile: infrastructure/node/Dockerfile
+      args:
+        SERVICE_PACKAGE: "@saas/billing-service"
+
+  notification-service:
+    <<: *service-base
+    build:
+      context: ../..
+      dockerfile: infrastructure/node/Dockerfile
+      args:
+        SERVICE_PACKAGE: "@saas/notification-service"
+
+networks:
+  saas-gateway:
+    external: true

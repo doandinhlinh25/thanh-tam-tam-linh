@@ -1,12 +1,17 @@
 services:
-  application:
+  billing-service:
     build:
       context: ../..
-      dockerfile: services/billing-service/Dockerfile
+      dockerfile: infrastructure/node/Dockerfile
       args:
-        MODULE_PATH: services/billing-service
-        MODULE_ARTIFACT: billing-service
-    env_file:
-      - .env
+        SERVICE_PACKAGE: "@saas/billing-service"
+    environment:
+      PORT: ${PORT}
     ports:
-      - "${HOST_PORT}:${SERVER_PORT}"
+      - "${HOST_PORT}:${PORT}"
+    networks:
+      - saas-gateway
+
+networks:
+  saas-gateway:
+    external: true
