@@ -1,0 +1,37 @@
+# Document Service
+
+Spring Boot 3.5 / Java 21 implementation of `POST /api/v1/courses/{courseId}/documents` in `contracts/openapi/document.v1.yaml`.
+
+Java packages under `com.linh.document`:
+
+- `controller`, `filter`: upload endpoint and early course authorization.
+- `dto.request`, `dto.response`: request validation and public response models.
+- `services`: upload interface; `services.impl`: its implementation; `services.ports` and `services.support`: adapter contracts and job ID helper.
+- `model`, `constants`, `exception`: document metadata, shared values, and error handling.
+- `infrastructure.authorization`, `infrastructure.persistence`, `infrastructure.queue`, `infrastructure.storage`: Tenant Service, PostgreSQL, Redis, and S3 adapters.
+
+`DocumentApplication` remains in the root package so Spring Boot can discover all components.
+
+## Start
+
+1. Create a PostgreSQL database and apply `database/migrations/001_document_upload.sql`.
+2. Create a private S3 compatible bucket and provide Redis with Streams enabled.
+3. Set the environment variables in `.env.example`. Configure the internal Tenant Service authorization endpoint and shared service token.
+4. Run `./mvnw spring-boot:run` (Windows: `.\mvnw.cmd spring-boot:run`).
+
+The Maven Wrapper downloads its pinned Maven distribution automatically. Java 21 is required. Run tests with `./mvnw test` or `.\mvnw.cmd test`.
+
+## Upload
+
+```bash
+curl -X POST 'http://localhost:8080/api/v1/courses/course-1/documents' \
+  -H 'Cookie: session=USER_SESSION' \
+  -H 'Idempotency-Key: pdf-upload-1' \
+  -F 'file=@example.pdf;type=application/pdf'
+```
+
+The authorization filter sends the original session cookie and course ID to the configured internal Tenant Service endpoint before parsing the multipart body. Its successful response must be `{"successful":true,"data":{"allowed":true,"tenantId":"...","userId":"..."}}`; unauthorized and forbidden responses use HTTP 401 and 403. Tenant/user IDs from the client are ignored. The endpoint must authenticate the service token, validate the user session, and check course access. The current Tenant Service skeleton does not implement this endpoint yet, so uploads cannot be used end to end until that integration exists.
+
+The PDF is stored privately under `tenantId/courseId/documentId/1.pdf`. Metadata is stored in PostgreSQL. An event matching `contracts/events/document-ingest-requested.v1.schema.json` is added to the Redis Stream `document-ingestion` in its `payload` field. Consumers must check the document and tenant again and handle `jobId` idempotently. If publication fails, the upload stays `UPLOADED`; retrying with the same key and bytes publishes it again. Configure Redis persistence for durable processing.
+
+This implementation covers upload only. The contract's get, delete, retrieval, and PDF text-layer processing endpoints need separate implementation.

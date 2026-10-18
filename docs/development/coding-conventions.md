@@ -1,6 +1,6 @@
 # Quy chuẩn TypeScript cho Node.js services
 
-Áp dụng cho mọi service trong `services/`. Mỗi service giữ cùng quy chuẩn,
+Áp dụng cho các Node.js service trong `services/`. Mỗi service giữ cùng quy chuẩn,
 nhưng sở hữu dữ liệu, entity, repository và business rule của chính mình.
 
 ## Cấu trúc và trách nhiệm
