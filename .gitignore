@@ -19,4 +19,5 @@ build/
 **/.env
 node_modules/
 **/dist/
+**/target/
 *.tsbuildinfo

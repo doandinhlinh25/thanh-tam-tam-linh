@@ -1,0 +1,293 @@
+openapi: 3.0.3
+info:
+  title: API Tài liệu và truy xuất
+  version: 1.0.0
+  description: >-
+    Hợp đồng v1 do Document Service sở hữu, đang chờ nhóm thống nhất.
+    Các đường dẫn công khai đi qua Kong; đường dẫn truy xuất nội bộ không được
+    mở qua Kong. Cơ chế xác thực cần thống nhất với nhóm Platform.
+servers:
+  - url: /
+paths:
+  /api/v1/courses/{courseId}/documents:
+    post:
+      operationId: uploadDocument
+      summary: Tải lên PDF có lớp văn bản để xử lý
+      description: >-
+        Người dùng đã xác thực phải có quyền quản lý tài liệu của môn học.
+        Document Service kiểm tra quyền môn học qua Tenant Service. Khóa chống
+        xử lý trùng có phạm vi theo tenant, môn học và người tải lên. Gửi lại
+        cùng khóa và cùng nội dung sẽ nhận tài liệu ban đầu; cùng khóa nhưng
+        nội dung khác sẽ bị từ chối.
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF có lớp văn bản; máy chủ kiểm tra MIME, chữ ký tệp và kích thước.
+      responses:
+        '202':
+          description: Đã nhận tệp và xếp lịch xử lý.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '400':
+          $ref: '#/components/responses/Failure'
+        '401':
+          $ref: '#/components/responses/Failure'
+        '403':
+          $ref: '#/components/responses/Failure'
+        '409':
+          $ref: '#/components/responses/Failure'
+        '413':
+          $ref: '#/components/responses/Failure'
+        '415':
+          $ref: '#/components/responses/Failure'
+        '429':
+          $ref: '#/components/responses/Failure'
+        '500':
+          $ref: '#/components/responses/Failure'
+        '503':
+          $ref: '#/components/responses/Failure'
+  /api/v1/documents/{documentId}:
+    get:
+      operationId: getDocument
+      summary: Xem thông tin và trạng thái xử lý tài liệu
+      description: Người gọi phải có quyền với môn học và tài liệu tương ứng.
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Thông tin tài liệu và trạng thái xử lý hiện tại.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '401':
+          $ref: '#/components/responses/Failure'
+        '403':
+          $ref: '#/components/responses/Failure'
+        '404':
+          $ref: '#/components/responses/Failure'
+    delete:
+      operationId: deleteDocument
+      summary: Bắt đầu xóa tệp, chunk và embedding
+      description: >-
+        Cần quyền quản lý tài liệu. Tài liệu không còn xuất hiện trong kết quả
+        tìm kiếm ngay sau khi ghi nhận trạng thái DELETING. Gọi xóa lặp lại
+        trong lúc đang xóa không tạo thêm tác vụ xóa.
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '202':
+          description: Đã nhận yêu cầu xóa.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '401':
+          $ref: '#/components/responses/Failure'
+        '403':
+          $ref: '#/components/responses/Failure'
+        '404':
+          $ref: '#/components/responses/Failure'
+  /internal/v1/retrieval/search:
+    post:
+      operationId: searchEvidence
+      summary: Tìm bằng chứng được phép truy cập cho Chat Service
+      description: >-
+        Cần thông tin xác thực giữa các service. Document Service xác minh quyền
+        tenant/môn học hiện tại của người hỏi qua Tenant Service và áp dụng ACL
+        tài liệu trước khi xếp hạng hoặc trả về ứng viên. Các ID do Chat Service
+        gửi chỉ là ngữ cảnh, không phải bằng chứng cấp quyền. Chỉ tìm trong
+        tài liệu READY chưa bị xóa và thuộc một phiên bản chỉ mục đang hoạt động.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Các ứng viên hợp quyền, sắp theo điểm truy xuất dense.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          $ref: '#/components/responses/Failure'
+        '401':
+          $ref: '#/components/responses/Failure'
+        '403':
+          $ref: '#/components/responses/Failure'
+        '409':
+          $ref: '#/components/responses/Failure'
+        '503':
+          $ref: '#/components/responses/Failure'
+components:
+  parameters:
+    CourseId:
+      name: courseId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+  responses:
+    Failure:
+      description: Yêu cầu thất bại; xem mã tại error.errorCode.
+      content:
+        application/json:
+          schema:
+            $ref: './common.yaml#/components/schemas/ApiFailureResponse'
+  schemas:
+    DocumentStatus:
+      type: string
+      enum: [UPLOADED, QUEUED, PROCESSING, READY, FAILED, DELETING, DELETED]
+    Document:
+      type: object
+      required: [documentId, tenantId, courseId, fileName, status, documentVersion, createdAt, updatedAt]
+      properties:
+        documentId:
+          type: string
+        tenantId:
+          type: string
+        courseId:
+          type: string
+        fileName:
+          type: string
+        status:
+          $ref: '#/components/schemas/DocumentStatus'
+        documentVersion:
+          type: integer
+          minimum: 1
+        pageCount:
+          type: integer
+          minimum: 0
+          nullable: true
+        failureCode:
+          type: string
+          nullable: true
+          description: Mã lỗi xử lý ổn định; có giá trị khi trạng thái là FAILED.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    DocumentResponse:
+      type: object
+      required: [successful, data, error]
+      properties:
+        successful:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/Document'
+        error:
+          nullable: true
+    SearchRequest:
+      type: object
+      additionalProperties: false
+      required: [tenantId, courseId, actorUserId, query, candidateK, requestId]
+      properties:
+        tenantId:
+          type: string
+          minLength: 1
+        courseId:
+          type: string
+          minLength: 1
+        actorUserId:
+          type: string
+          minLength: 1
+        query:
+          type: string
+          minLength: 1
+        candidateK:
+          type: integer
+          minimum: 1
+          description: Giới hạn trên do Document Service cấu hình.
+        requestId:
+          type: string
+          minLength: 1
+        expectedIndexVersion:
+          type: string
+          description: Khóa phiên bản tùy chọn; không khớp sẽ trả INDEX_VERSION_MISMATCH.
+    Candidate:
+      type: object
+      required: [evidenceId, chunkId, documentId, documentVersion, documentName, pageFrom, pageTo, text, retrievalScore]
+      properties:
+        evidenceId:
+          type: string
+          description: ID không mang ý nghĩa nghiệp vụ, duy nhất trong phản hồi này; Chat phải lưu ảnh chụp bằng chứng.
+        chunkId:
+          type: string
+          description: ID không đổi của chunk trong một phiên bản tài liệu.
+        documentId:
+          type: string
+        documentVersion:
+          type: integer
+          minimum: 1
+        documentName:
+          type: string
+        pageFrom:
+          type: integer
+          minimum: 1
+        pageTo:
+          type: integer
+          minimum: 1
+        text:
+          type: string
+        retrievalScore:
+          type: number
+          description: Điểm truy xuất dense; chỉ so sánh trong cùng phiên bản mô hình và chỉ mục.
+    SearchResult:
+      type: object
+      required: [requestId, indexVersion, embeddingModelVersion, candidates]
+      properties:
+        requestId:
+          type: string
+        indexVersion:
+          type: string
+        embeddingModelVersion:
+          type: string
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Candidate'
+    SearchResponse:
+      type: object
+      required: [successful, data, error]
+      properties:
+        successful:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/SearchResult'
+        error:
+          nullable: true
