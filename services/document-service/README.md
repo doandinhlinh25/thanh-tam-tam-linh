@@ -6,9 +6,9 @@ Java packages under `com.linh.document`:
 
 - `controller`, `filter`: upload endpoint and early course authorization.
 - `dto.request`, `dto.response`: request validation and public response models.
-- `services`: upload interface; `services.impl`: its implementation; `services.ports` and `services.support`: adapter contracts and job ID helper.
-- `model`, `constants`, `exception`: document metadata, shared values, and error handling.
-- `infrastructure.authorization`, `infrastructure.persistence`, `infrastructure.queue`, `infrastructure.storage`: Tenant Service, PostgreSQL, Redis, and S3 adapters.
+- `services.business`, `services.authorization`, `services.persistence`, `services.queue`, and `services.storage`: each package owns its interface and an `impl` subpackage for its implementation; `utils`: job ID helper.
+- `entity`, `constants`, `exception`: JPA document mapping, shared values, and error handling.
+- `repository`: Spring Data JPA lookups. The PostgreSQL adapter uses native `ON CONFLICT` statements to preserve idempotent uploads and ingestion jobs.
 
 `DocumentApplication` remains in the root package so Spring Boot can discover all components.
 

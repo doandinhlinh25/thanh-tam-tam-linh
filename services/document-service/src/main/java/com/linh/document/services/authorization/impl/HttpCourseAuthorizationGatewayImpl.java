@@ -1,10 +1,10 @@
-package com.linh.document.infrastructure.authorization;
+package com.linh.document.services.authorization.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linh.document.exception.DocumentException;
-import com.linh.document.services.ports.UploadPorts.AuthorizationGateway;
-import com.linh.document.services.ports.UploadPorts.AuthorizedUploader;
+import com.linh.document.services.authorization.AuthorizedUploader;
+import com.linh.document.services.authorization.ICourseAuthorizationGateway;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
@@ -16,9 +16,9 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-/** Confirms a user's course permission with Tenant Service. */
+/** Xác nhận quyền của người dùng đối với khóa học qua Tenant Service. */
 @Component
-public class HttpCourseAuthorizationGateway implements AuthorizationGateway {
+public class HttpCourseAuthorizationGatewayImpl implements ICourseAuthorizationGateway {
     private static final String COURSE_ID_FIELD = "courseId";
     private static final String DATA_FIELD = "data";
     private static final String SUCCESS_FIELD = "successful";
@@ -38,14 +38,14 @@ public class HttpCourseAuthorizationGateway implements AuthorizationGateway {
     private final ObjectMapper objectMapper;
 
     /**
-     * Configures the internal authorization call and timeout.
+     * Cấu hình lời gọi xác thực quyền nội bộ và thời gian chờ.
      *
-     * @param url internal Tenant Service URL
-     * @param serviceToken service credential
-     * @param timeoutMs request timeout in milliseconds
-     * @param objectMapper JSON response parser
+     * @param url địa chỉ nội bộ của Tenant Service
+     * @param serviceToken thông tin xác thực của dịch vụ
+     * @param timeoutMs thời gian chờ yêu cầu tính bằng mili giây
+     * @param objectMapper bộ xử lý JSON
      */
-    public HttpCourseAuthorizationGateway(@Value("${document.authorization.url}") String url,
+    public HttpCourseAuthorizationGatewayImpl(@Value("${document.authorization.url}") String url,
             @Value("${document.authorization.token}") String serviceToken,
             @Value("${document.authorization.timeout-ms}") long timeoutMs, ObjectMapper objectMapper) {
         this.url = URI.create(url);
@@ -58,11 +58,11 @@ public class HttpCourseAuthorizationGateway implements AuthorizationGateway {
     }
 
     /**
-     * Returns the tenant and user IDs only after Tenant Service permits the action.
+     * Chỉ trả về mã tenant và người dùng sau khi Tenant Service cho phép thao tác.
      *
-     * @param courseId requested course
-     * @param cookie original user session cookie
-     * @return trusted tenant and uploader
+     * @param courseId mã khóa học
+     * @param cookie cookie của phiên người dùng gốc
+     * @return tenant và người tải lên đã được xác minh
      */
     @Override
     public AuthorizedUploader authorize(String courseId, String cookie) {
