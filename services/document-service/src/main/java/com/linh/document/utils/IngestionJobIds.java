@@ -1,9 +1,9 @@
-package com.linh.document.services.support;
+package com.linh.document.utils;
 
 import com.linh.document.constants.DocumentContract;
-import com.linh.document.model.DocumentRecord;
+import com.linh.document.entity.Documents;
 
-/** Stable job identifiers shared by the queue and database. */
+/** Mã tác vụ cố định dùng chung cho hàng đợi và cơ sở dữ liệu. */
 public final class IngestionJobIds {
     private static final String SEPARATOR = "-";
 
@@ -11,12 +11,12 @@ public final class IngestionJobIds {
     }
 
     /**
-     * Creates the deterministic ID for a document version.
+     * Tạo mã xác định cho một phiên bản tài liệu.
      *
-     * @param document source document
-     * @return ingestion job ID
+     * @param document tài liệu
+     * @return mã tác vụ xử lý dữ liệu
      */
-    public static String forDocument(DocumentRecord document) {
+    public static String forDocument(Documents document) {
         return String.join(SEPARATOR, DocumentContract.JOB_PREFIX, document.documentId(),
                 DocumentContract.VERSION_PREFIX, Integer.toString(document.documentVersion()));
     }

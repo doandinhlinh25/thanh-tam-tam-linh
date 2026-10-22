@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
 
-/** Converts upload failures to the public API error envelope. */
+/** Chuyển lỗi tải lên thành cấu trúc lỗi của API công khai. */
 @RestControllerAdvice
 public class DocumentErrorHandler {
     private static final String TOO_LARGE_CODE = "DOCUMENT_FILE_TOO_LARGE";
@@ -24,10 +24,10 @@ public class DocumentErrorHandler {
     private static final String INTERNAL_MESSAGE = "Không thể xử lý yêu cầu upload";
 
     /**
-     * Returns a known document failure.
+     * Trả về lỗi tài liệu đã xác định.
      *
-     * @param error domain error
-     * @return API error response
+     * @param error thông tin lỗi
+     * @return phản hồi lỗi API
      */
     @ExceptionHandler(DocumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleDocument(DocumentException error) {
@@ -35,10 +35,10 @@ public class DocumentErrorHandler {
     }
 
     /**
-     * Rejects oversized multipart requests.
+     * Từ chối yêu cầu multipart vượt giới hạn dung lượng.
      *
-     * @param error multipart size error
-     * @return API error response
+     * @param error thông tin lỗi
+     * @return phản hồi lỗi API
      */
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleTooLarge(MaxUploadSizeExceededException error) {
@@ -46,10 +46,10 @@ public class DocumentErrorHandler {
     }
 
     /**
-     * Rejects malformed multipart requests.
+     * Từ chối yêu cầu multipart sai định dạng.
      *
-     * @param error multipart parsing error
-     * @return API error response
+     * @param error thông tin lỗi
+     * @return phản hồi lỗi API
      */
     @ExceptionHandler(MultipartException.class)
     public ResponseEntity<ApiResponse<Void>> handleMultipart(MultipartException error) {
@@ -57,10 +57,10 @@ public class DocumentErrorHandler {
     }
 
     /**
-     * Rejects requests with an unsupported content type.
+     * Từ chối yêu cầu có loại nội dung không được hỗ trợ.
      *
-     * @param error media type error
-     * @return API error response
+     * @param error thông tin lỗi
+     * @return phản hồi lỗi API
      */
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ApiResponse<Void>> handleMediaType(HttpMediaTypeNotSupportedException error) {
@@ -68,10 +68,10 @@ public class DocumentErrorHandler {
     }
 
     /**
-     * Hides infrastructure details from API clients.
+     * Ẩn thông tin hạ tầng khỏi ứng dụng khách API.
      *
-     * @param error unexpected error
-     * @return API error response
+     * @param error thông tin lỗi
+     * @return phản hồi lỗi API
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception error) {

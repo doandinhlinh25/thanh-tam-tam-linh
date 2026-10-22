@@ -1,12 +1,12 @@
-package com.linh.document.infrastructure.queue;
+package com.linh.document.services.queue.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linh.document.constants.DocumentContract;
 import com.linh.document.exception.DocumentException;
-import com.linh.document.model.DocumentRecord;
-import com.linh.document.services.ports.UploadPorts.IngestionQueue;
-import com.linh.document.services.support.IngestionJobIds;
+import com.linh.document.entity.Documents;
+import com.linh.document.services.queue.IIngestionQueue;
+import com.linh.document.utils.IngestionJobIds;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -14,9 +14,9 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
-/** Publishes one ingestion message per document version to a Redis Stream. */
+/** Gửi một thông điệp xử lý dữ liệu cho mỗi phiên bản tài liệu vào Redis Stream. */
 @Component
-public class RedisIngestionQueue implements IngestionQueue {
+public class RedisIngestionQueueImpl implements IIngestionQueue {
     private static final String DEDUP_PREFIX = "document-ingestion:published:";
     private static final String PAYLOAD_FIELD = "payload";
     private static final String EVENT_FIELD = "event";
@@ -39,12 +39,12 @@ public class RedisIngestionQueue implements IngestionQueue {
     private final DefaultRedisScript<Long> script;
 
     /**
-     * Configures atomic publication and deduplication.
+     * Cấu hình việc gửi thông điệp nguyên tử và loại bỏ trùng lặp.
      *
-     * @param redis Redis client
-     * @param objectMapper JSON serializer
+     * @param redis ứng dụng khách Redis
+     * @param objectMapper bộ xử lý JSON
      */
-    public RedisIngestionQueue(StringRedisTemplate redis, ObjectMapper objectMapper) {
+    public RedisIngestionQueueImpl(StringRedisTemplate redis, ObjectMapper objectMapper) {
         this.redis = redis;
         this.objectMapper = objectMapper;
         this.script = new DefaultRedisScript<>(PUBLISH_SCRIPT, Long.class);
@@ -52,7 +52,7 @@ public class RedisIngestionQueue implements IngestionQueue {
 
     /** {@inheritDoc} */
     @Override
-    public void enqueue(DocumentRecord document) {
+    public void enqueue(Documents document) {
         String jobId = IngestionJobIds.forDocument(document);
         try {
             String payload = objectMapper.writeValueAsString(Map.of(
