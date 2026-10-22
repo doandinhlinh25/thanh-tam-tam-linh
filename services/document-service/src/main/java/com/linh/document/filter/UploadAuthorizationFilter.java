@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linh.document.constants.DocumentContract;
 import com.linh.document.dto.response.ApiResponse;
 import com.linh.document.exception.DocumentException;
-import com.linh.document.services.ports.UploadPorts.AuthorizationGateway;
+import com.linh.document.services.authorization.ICourseAuthorizationGateway;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,7 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/** Checks course permission before the multipart PDF is parsed. */
+/** Kiểm tra quyền đối với khóa học trước khi phân tích tệp PDF multipart. */
 @Component
 public class UploadAuthorizationFilter extends OncePerRequestFilter {
     private static final String POST_METHOD = "POST";
@@ -26,28 +26,28 @@ public class UploadAuthorizationFilter extends OncePerRequestFilter {
     private static final String UNAUTHENTICATED_MESSAGE = "Chưa có phiên đăng nhập hợp lệ";
     private static final String INVALID_REQUEST_CODE = "DOCUMENT_UPLOAD_INVALID";
     private static final String INVALID_REQUEST_MESSAGE = "Yêu cầu upload không hợp lệ";
-    private final AuthorizationGateway authorization;
+    private final ICourseAuthorizationGateway authorization;
     private final ObjectMapper objectMapper;
 
     /**
-     * Creates the early course authorization boundary.
+     * Khởi tạo bước kiểm tra quyền truy cập khóa học trước khi xử lý tệp.
      *
-     * @param authorization course permission gateway
-     * @param objectMapper JSON response writer
+     * @param authorization cổng kiểm tra quyền truy cập khóa học
+     * @param objectMapper bộ xử lý JSON
      */
-    public UploadAuthorizationFilter(AuthorizationGateway authorization, ObjectMapper objectMapper) {
+    public UploadAuthorizationFilter(ICourseAuthorizationGateway authorization, ObjectMapper objectMapper) {
         this.authorization = authorization;
         this.objectMapper = objectMapper;
     }
 
     /**
-     * Authorizes upload without trusting tenant or user headers from the client.
+     * Cấp quyền tải lên mà không tin các header tenant hoặc người dùng do ứng dụng khách gửi.
      *
-     * @param request inbound HTTP request
-     * @param response outbound HTTP response
-     * @param chain remaining request processing
-     * @throws ServletException when downstream servlet processing fails
-     * @throws IOException when response writing fails
+     * @param request yêu cầu HTTP gửi đến
+     * @param response phản hồi HTTP gửi đi
+     * @param chain chuỗi xử lý yêu cầu còn lại
+     * @throws ServletException khi quá trình xử lý servlet phía sau thất bại
+     * @throws IOException khi ghi phản hồi thất bại
      */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)

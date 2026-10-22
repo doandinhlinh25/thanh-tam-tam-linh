@@ -9,24 +9,24 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 
-/** Starts the isolated Document Service API. */
+/** Khởi động API độc lập của Document Service. */
 @SpringBootApplication
 public class DocumentApplication {
     /**
-     * Starts the Spring Boot process.
+     * Khởi động ứng dụng Spring Boot.
      *
-     * @param arguments command line arguments
+     * @param arguments các đối số dòng lệnh
      */
     public static void main(String[] arguments) {
         SpringApplication.run(DocumentApplication.class, arguments);
     }
 
     /**
-     * Creates an AWS SDK client for a private S3 compatible bucket.
+     * Tạo ứng dụng khách AWS SDK cho bucket riêng tương thích với S3.
      *
-     * @param region bucket region
-     * @param endpoint optional S3 compatible endpoint
-     * @return configured client
+     * @param region vùng của bucket
+     * @param endpoint địa chỉ S3 tương thích, nếu có
+     * @return ứng dụng khách đã cấu hình
      */
     @Bean
     public S3Client documentS3Client(@Value("${document.s3.region}") String region,

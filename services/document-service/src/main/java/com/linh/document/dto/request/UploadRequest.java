@@ -5,12 +5,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import org.springframework.web.multipart.MultipartFile;
 
-/** Multipart upload fields checked at the HTTP boundary. */
+/** Các trường tải lên multipart được kiểm tra tại điểm truy cập HTTP. */
 public record UploadRequest(String courseId, String idempotencyKey, MultipartFile file) {
     /**
-     * Checks required upload fields before reading PDF bytes.
+     * Kiểm tra các trường tải lên bắt buộc trước khi đọc dữ liệu PDF.
      *
-     * @return true when all required fields are present
+     * @return true khi có đầy đủ các trường bắt buộc
      */
     public boolean hasRequiredFields() {
         return courseId != null && !courseId.isBlank()
@@ -20,10 +20,10 @@ public record UploadRequest(String courseId, String idempotencyKey, MultipartFil
     }
 
     /**
-     * Checks PDF media type, filename, and file signature.
+     * Kiểm tra loại nội dung PDF, tên tệp và chữ ký tệp.
      *
-     * @param bytes uploaded file bytes
-     * @return true when the file has a PDF signature and expected metadata
+     * @param bytes dữ liệu tệp PDF được tải lên
+     * @return true khi tệp có chữ ký PDF và siêu dữ liệu hợp lệ
      */
     public boolean hasPdfSignature(byte[] bytes) {
         byte[] signature = DocumentContract.PDF_MAGIC.getBytes(StandardCharsets.US_ASCII);
