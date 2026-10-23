@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review (6/6)"
+  short_description: "Independent evidence-based review and accept decision"
+  default_prompt: "Use $review to review the current diff against the approved plan and decide readiness."

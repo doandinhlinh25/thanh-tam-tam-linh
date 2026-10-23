@@ -1,0 +1,9 @@
+# Repository agent guidance
+
+- This repository currently implements a Node/TypeScript service skeleton and shared packages. `apps/web/` is empty. Read [frontend discovery](docs/engineering/frontend-skill-discovery.md) for verified versus planned capabilities, then inspect the live tree before work.
+- For a new frontend feature, integration, or substantial change, use [frontend-feature-workflow](.agents/skills/frontend-feature-workflow/SKILL.md) in its `Scout → BA → Analyze → Plan → Cook → Test` order. Invoke the specialist skills selected during Plan by opening and following their `SKILL.md` files. Use [frontend-git-flow](.agents/skills/frontend-git-flow/SKILL.md) for substantial work's branch preflight.
+- Preserve tracked and untracked user work. Do not assume the cached `origin/main` is current when the remote cannot be reached. Do not automatically commit, push, merge, or open a PR.
+- Treat handbook endpoint examples and React/Vite/TypeScript as plans until code and contracts verify them. `contracts/openapi/common.yaml` currently has no API paths. Do not invent endpoint or LMS/streaming support.
+- Root `npm run build`, `npm run typecheck`, and `npm test` cover Node workspaces, not a frontend. Discover `apps/web` commands after it is scaffolded, and report checks that could not run.
+- For other non-trivial work (backend, infrastructure, bug fixes, refactors, investigations), use the stage skills `scout → brainstorm → plan → cook → test → review` described in the [workflow guide](docs/workflow/README.md). Run one stage per user request and do not start the next stage without the user's go-ahead. `cook` requires an approved plan.
+- The [skill index](.agents/skills/README.md) maps tasks to project skills and explains Codex discovery. Existing coding conventions under `docs/development/` govern Node services.
