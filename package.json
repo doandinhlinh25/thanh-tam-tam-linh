@@ -21,7 +21,8 @@
     "slugify": "^1.6.9"
   },
   "scripts": {
-    "start": "nodemon index.ts"
+    "start": "nodemon --exec tsx index.ts",
+    "seed:tenants": "tsx scripts/seed-tenants.ts"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
@@ -33,6 +34,7 @@
     "@types/node": "^26.6.5",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
 }
