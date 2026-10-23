@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test (5/6)"
+  short_description: "Verify the diff against acceptance criteria with evidence"
+  default_prompt: "Use $test to verify the current changes against the plan's acceptance criteria."

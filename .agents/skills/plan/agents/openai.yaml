@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan (3/6)"
+  short_description: "Write an approved, verifiable plan in docs/plans"
+  default_prompt: "Use $plan to write an implementation plan for the approved direction under docs/plans."
