@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "document.ingest.requested.v1",
+  "title": "Yêu cầu xử lý tài liệu v1",
+  "description": "Đây chỉ là thông điệp trong hàng đợi. Worker phải đọc lại tài liệu và xác minh tenant, phiên bản, trạng thái trước khi xử lý.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event",
+    "eventVersion",
+    "jobId",
+    "tenantId",
+    "documentId",
+    "documentVersion",
+    "occurredAt"
+  ],
+  "properties": {
+    "event": { "const": "document.ingest.requested" },
+    "eventVersion": { "const": 1 },
+    "jobId": { "type": "string", "minLength": 1 },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "documentId": { "type": "string", "minLength": 1 },
+    "documentVersion": { "type": "integer", "minimum": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" }
+  }
+}

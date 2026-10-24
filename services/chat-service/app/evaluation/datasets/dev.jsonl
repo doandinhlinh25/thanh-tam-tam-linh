@@ -1,0 +1,2 @@
+{"id": "dev-001", "course_id": "course-101", "question": "Khái niệm chính của bài học là gì?", "ground_truth": "Khái niệm chính là tính kế thừa trong OOP.", "expected_refusal": false}
+{"id": "dev-002", "course_id": "course-101", "question": "Thời tiết hôm nay thế nào?", "ground_truth": "", "expected_refusal": true}

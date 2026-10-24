@@ -1,0 +1,81 @@
+openapi: 3.0.3
+info:
+  title: LLM Inference API
+  version: 0.1.0
+paths:
+  /health/live:
+    get:
+      responses:
+        '200': {description: Process is alive, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}
+  /health/ready:
+    get:
+      responses:
+        '200': {description: Ready, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}
+        '503': {description: Not ready, content: {application/json: {schema: {$ref: '#/components/schemas/Health'}}}}
+  /internal/llm/generate:
+    post:
+      security: [{BearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/GenerateRequest'}}
+      responses:
+        '200': {description: Generated output, content: {application/json: {schema: {$ref: '#/components/schemas/GenerateResponse'}}}}
+        '401': {description: Unauthorized, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+        '422': {description: Invalid request, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+        '502': {description: Provider failure, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+        '503': {description: Provider rate limited, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+        '504': {description: Provider timeout, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+components:
+  securitySchemes:
+    BearerAuth: {type: http, scheme: bearer}
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties: {status: {type: string}}
+    Message:
+      type: object
+      required: [role, content]
+      additionalProperties: false
+      properties:
+        role: {type: string, enum: [system, user, assistant]}
+        content: {type: string, minLength: 1}
+    GenerateRequest:
+      type: object
+      required: [messages, max_output_tokens, temperature, output_format]
+      additionalProperties: false
+      properties:
+        messages: {type: array, minItems: 1, maxItems: 20, items: {$ref: '#/components/schemas/Message'}}
+        max_output_tokens: {type: integer, exclusiveMinimum: 0}
+        temperature: {type: number, minimum: 0, maximum: 1}
+        output_format: {type: string, enum: [text, json_object]}
+        prompt_version: {type: string, maxLength: 100}
+    Usage:
+      type: object
+      nullable: true
+      properties:
+        input_tokens: {type: integer, nullable: true}
+        output_tokens: {type: integer, nullable: true}
+        total_tokens: {type: integer, nullable: true}
+    GenerateResponse:
+      type: object
+      required: [request_id, model, output, usage, latency_ms]
+      properties:
+        request_id: {type: string}
+        model: {type: string}
+        output:
+          type: object
+          required: [text, finish_reason]
+          properties: {text: {type: string}, finish_reason: {type: string}}
+        usage: {$ref: '#/components/schemas/Usage'}
+        latency_ms: {type: integer, minimum: 0}
+    ErrorResponse:
+      type: object
+      required: [request_id, error]
+      properties:
+        request_id: {type: string}
+        error:
+          type: object
+          required: [code, message]
+          properties: {code: {type: string}, message: {type: string}}

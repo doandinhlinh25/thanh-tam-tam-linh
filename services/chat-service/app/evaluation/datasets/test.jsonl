@@ -1,0 +1,1 @@
+{"id": "test-001", "course_id": "course-201", "question": "Hạn chót nộp bài tập lớn là ngày nào?", "ground_truth": "Hạn chót là ngày 30 tháng 11.", "expected_refusal": false}
