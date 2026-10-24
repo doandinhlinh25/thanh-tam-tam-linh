@@ -2,7 +2,15 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": ".",
-    "outDir": "dist"
+    "outDir": "dist",
+    "resolveJsonModule": true,
+    "declaration": false
   },
-  "include": ["index.ts", "configs/**/*.ts", "controllers/**/*.ts", "dto/**/*.ts", "exceptions/**/*.ts", "helpers/**/*.ts", "interface/**/*.ts", "middlewares/**/*.ts", "models/**/*.ts", "repositories/**/*.ts", "routes/**/*.ts", "services/**/*.ts"]
+  "include": [
+    "**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

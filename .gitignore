@@ -24,3 +24,8 @@ node_modules/
 
 # Agent artifacts
 .agents/
+
+**/.env.*
+!**/.env.example
+.test-data/
+.npm-cache/

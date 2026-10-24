@@ -5,10 +5,13 @@ services:
       dockerfile: infrastructure/node/Dockerfile
       args:
         SERVICE_PACKAGE: "@saas/tenant-service"
+    env_file:
+      - .env
     environment:
-      PORT: ${PORT}
+      PORT: ${PORT:-4002}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:4001}
     ports:
-      - "${HOST_PORT}:${PORT}"
+      - "${HOST_PORT:-4002}:${PORT:-4002}"
     networks:
       - saas-gateway
 
