@@ -6,7 +6,7 @@ COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages ./packages
 COPY services ./services
 
-RUN npm ci
+RUN MONGOMS_DISABLE_POSTINSTALL=1 npm ci
 RUN npm run build
 
 ARG SERVICE_PACKAGE

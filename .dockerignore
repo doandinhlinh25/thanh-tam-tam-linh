@@ -3,3 +3,8 @@
 **/.env
 node_modules
 **/dist
+
+**/.env.*
+!**/.env.example
+.test-data/
+.npm-cache/

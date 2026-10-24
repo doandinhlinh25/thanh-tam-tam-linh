@@ -1,0 +1,19 @@
+services:
+  auth-service:
+    build:
+      context: ../..
+      dockerfile: infrastructure/node/Dockerfile
+      args:
+        SERVICE_PACKAGE: "@saas/auth-service"
+    env_file:
+      - .env
+    environment:
+      PORT: ${PORT:-4001}
+    ports:
+      - "${HOST_PORT:-4001}:${PORT:-4001}"
+    networks:
+      - saas-gateway
+
+networks:
+  saas-gateway:
+    external: true
