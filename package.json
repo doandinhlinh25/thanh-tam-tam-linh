@@ -8,11 +8,16 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run build && node --test test/*.test.js && npm run test --workspaces --if-present"
+    "test": "npm run build && node --test test/*.test.js && npm run test --workspaces --if-present && npm run test:platform",
+    "test:platform": "tsx --test --test-concurrency=1 test/platform.integration.ts"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "tsx": "^4.19.3",
+    "mongodb-memory-server": "^10.1.4",
+    "mongoose": "^8.13.0",
+    "argon2": "^0.41.1"
   }
 }

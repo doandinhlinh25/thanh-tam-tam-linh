@@ -10,6 +10,9 @@ const { SERVICE_NAME: TENANT_NAME } = require("../services/tenant-service/dist/c
 const { SERVICE_NAME: BILLING_NAME } = require("../services/billing-service/dist/configs/service.config.js");
 const { SERVICE_NAME: NOTIFICATION_NAME } = require("../services/notification-service/dist/configs/service.config.js");
 
+const { registerHealthRoutes: registerAuthHealth } = require("../services/auth-service/dist/routes/health.route.js");
+const { SERVICE_NAME: AUTH_NAME } = require("../services/auth-service/dist/configs/service.config.js");
+
 const LOOPBACK_HOST = "127.0.0.1";
 const EPHEMERAL_PORT = 0;
 const HTTP_PROTOCOL = "http:";
@@ -43,6 +46,7 @@ async function assertHealthRoute(registerHealthRoutes, serviceName) {
 }
 
 test("each service owns its route, controller, service and response DTO", async () => {
+  await assertHealthRoute(registerAuthHealth, AUTH_NAME);
   await assertHealthRoute(registerIdentityHealth, IDENTITY_NAME);
   await assertHealthRoute(registerTenantHealth, TENANT_NAME);
   await assertHealthRoute(registerBillingHealth, BILLING_NAME);
