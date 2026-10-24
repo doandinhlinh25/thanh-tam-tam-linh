@@ -1,0 +1,4 @@
+interface:
+  display_name: "Scout (1/6)"
+  short_description: "Read-only project investigation before any change"
+  default_prompt: "Use $scout to investigate the repository for this task and report verified facts, risks, and open questions."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cook (4/6)"
+  short_description: "Implement an approved plan within its scope"
+  default_prompt: "Use $cook to implement the approved plan at docs/plans/YYYY-MM-DD/name.md."

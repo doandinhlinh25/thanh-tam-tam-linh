@@ -9,7 +9,8 @@
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run build && node --test test/*.test.js && npm run test --workspaces --if-present && npm run test:platform",
-    "test:platform": "tsx --test --test-concurrency=1 test/platform.integration.ts"
+    "test:platform": "tsx --test --test-concurrency=1 test/platform.integration.ts",
+    "dev": "npm run dev --prefix apps/web"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

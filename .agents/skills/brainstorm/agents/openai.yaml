@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brainstorm (2/6)"
+  short_description: "Compare solution options and define acceptance criteria"
+  default_prompt: "Use $brainstorm to turn the scout findings into requirements, compared options, and a recommendation for approval."
