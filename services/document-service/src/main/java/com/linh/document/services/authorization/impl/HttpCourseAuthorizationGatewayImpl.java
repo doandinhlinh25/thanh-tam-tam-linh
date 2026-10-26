@@ -66,6 +66,9 @@ public class HttpCourseAuthorizationGatewayImpl implements ICourseAuthorizationG
      */
     @Override
     public AuthorizedUploader authorize(String courseId, String cookie) {
+        if (cookie == null || cookie.isBlank()) {
+            throw new DocumentException(HttpStatus.UNAUTHORIZED, UNAUTHENTICATED_CODE, UNAUTHENTICATED_MESSAGE);
+        }
         try {
             JsonNode response = client.post().uri(url)
                     .header(HttpHeaders.AUTHORIZATION, BEARER_PREFIX + serviceToken)

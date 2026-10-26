@@ -39,7 +39,7 @@ public class UploadController {
     }
 
     /**
-     * Chỉ tiếp nhận một tệp PDF sau khi bộ lọc xác thực quyền của phiên gốc.
+     * Chỉ tiếp nhận một tệp PDF sau khi quyền khóa học đã được xác minh.
      *
      * @param courseId mã khóa học
      * @param key khóa chống trùng của lượt tải lên
