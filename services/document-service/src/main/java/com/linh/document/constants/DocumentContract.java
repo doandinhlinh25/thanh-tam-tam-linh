@@ -3,6 +3,7 @@ package com.linh.document.constants;
 /** Các tên cố định cho tải lên, lưu trữ và sự kiện do Document Service quản lý. */
 public final class DocumentContract {
     public static final String UPLOAD_PATH = "/api/v1/courses/{courseId}/documents";
+    public static final String COURSE_ID_VARIABLE = "courseId";
     public static final String UPLOAD_PREFIX = "/api/v1/courses/";
     public static final String UPLOAD_SUFFIX = "/documents";
     public static final String FILE_FIELD = "file";
