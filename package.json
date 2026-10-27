@@ -9,15 +9,23 @@
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run build && node --test test/*.test.js && npm run test --workspaces --if-present && npm run test:platform",
-    "test:platform": "tsx --test --test-concurrency=1 test/platform.integration.ts"
+    "test:platform": "tsx --test --test-concurrency=1 test/platform.integration.ts",
+    "sandbox:init": "node scripts/sandbox.mjs init",
+    "sandbox:check": "node scripts/sandbox.mjs check",
+    "sandbox:up": "node scripts/sandbox.mjs up",
+    "sandbox:down": "node scripts/sandbox.mjs down",
+    "sandbox:status": "node scripts/sandbox.mjs status",
+    "sandbox:logs": "node scripts/sandbox.mjs logs",
+    "sandbox:smoke": "node scripts/sandbox.mjs smoke"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
-    "typescript": "^5.0.0",
-    "tsx": "^4.19.3",
+    "argon2": "^0.41.1",
     "mongodb-memory-server": "^10.1.4",
     "mongoose": "^8.13.0",
-    "argon2": "^0.41.1"
+    "tsx": "^4.19.3",
+    "typescript": "^5.0.0",
+    "yaml": "^2.9.1"
   }
 }

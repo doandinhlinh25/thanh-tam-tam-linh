@@ -1,0 +1,217 @@
+name: saas-auth-tenant-document-test
+
+x-node: &node
+  build:
+    context: ../..
+    dockerfile: infrastructure/sandbox/Node.Dockerfile
+  restart: unless-stopped
+  networks: [sandbox]
+  healthcheck:
+    test:
+      [
+        "CMD",
+        "node",
+        "-e",
+        "fetch('http://127.0.0.1:8080/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      ]
+    interval: 5s
+    timeout: 5s
+    retries: 30
+    start_period: 20s
+
+services:
+  mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:?Run npm run sandbox:init}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?Run npm run sandbox:init}
+      MONGO_REPLICA_KEY: ${MONGO_REPLICA_KEY:?Run npm run sandbox:init}
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        printf '%s' "$$MONGO_REPLICA_KEY" > /tmp/sandbox-mongo-key
+        chmod 400 /tmp/sandbox-mongo-key
+        chown mongodb:mongodb /tmp/sandbox-mongo-key
+        exec /usr/local/bin/docker-entrypoint.sh mongod --replSet sandbox-rs --bind_ip_all --keyFile /tmp/sandbox-mongo-key
+    volumes: [mongo-data:/data/db]
+    networks: [sandbox]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'mongosh --quiet --username "$$MONGO_INITDB_ROOT_USERNAME" --password "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval ''quit(db.adminCommand({ping:1}).ok ? 0 : 1)'''
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 20s
+
+  mongo-init:
+    image: mongo:7.0
+    depends_on:
+      mongo: { condition: service_healthy }
+    environment:
+      MONGO_USERNAME: ${MONGO_USERNAME}
+      MONGO_PASSWORD: ${MONGO_PASSWORD}
+    entrypoint: ["mongosh", "--quiet", "--file", "/bootstrap/mongo-init.js"]
+    volumes:
+      - ./mongo-init.js:/bootstrap/mongo-init.js:ro
+    networks: [sandbox]
+    restart: "no"
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: document_sandbox
+      POSTGRES_USER: document
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run npm run sandbox:init}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../../services/document-service/database/migrations/001_document_upload.sql:/docker-entrypoint-initdb.d/001_document_upload.sql:ro
+    networks: [sandbox]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U document -d document_sandbox"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD:?Run npm run sandbox:init}"
+      ]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    volumes: [redis-data:/data]
+    networks: [sandbox]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  s3:
+    build:
+      context: ../..
+      dockerfile: infrastructure/sandbox/S3.Dockerfile
+      target: minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?Run npm run sandbox:init}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?Run npm run sandbox:init}
+    ports:
+      - "127.0.0.1:${S3_PORT}:9000"
+      - "127.0.0.1:${S3_CONSOLE_PORT}:9001"
+    volumes: [s3-data:/data]
+    networks: [sandbox]
+
+  s3-init:
+    build:
+      context: ../..
+      dockerfile: infrastructure/sandbox/S3.Dockerfile
+      target: mc
+    depends_on:
+      s3: { condition: service_started }
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      DOCUMENT_S3_BUCKET: document-sandbox-private
+    entrypoint: ["/bin/sh", "/bootstrap/s3-init.sh"]
+    volumes:
+      - ./s3-init.sh:/bootstrap/s3-init.sh:ro
+    networks: [sandbox]
+    restart: "no"
+
+  auth:
+    <<: *node
+    command: ["npm", "run", "start", "--workspace", "@saas/auth-service"]
+    depends_on:
+      mongo-init: { condition: service_completed_successfully }
+    environment:
+      NODE_ENV: test
+      PORT: 8080
+      MONGODB_URI: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017/auth_sandbox?authSource=admin&replicaSet=sandbox-rs
+      JWT_SECRET: ${JWT_SECRET:?Run npm run sandbox:init}
+      AUTH_TENANT_TOKEN: ${AUTH_TENANT_TOKEN:?Run npm run sandbox:init}
+      SUPER_ADMIN_ID: ${SUPER_ADMIN_ID}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?Run npm run sandbox:init}
+      ALLOWED_ORIGINS: http://localhost:3000
+      APP_URL: http://localhost:3000
+      SESSION_SECONDS: 86400
+      REMEMBER_SECONDS: 604800
+      ACTION_TOKEN_SECONDS: 1800
+    ports: ["127.0.0.1:${AUTH_PORT}:8080"]
+
+  tenant:
+    <<: *node
+    command: ["npm", "run", "start", "--workspace", "@saas/tenant-service"]
+    depends_on:
+      mongo-init: { condition: service_completed_successfully }
+      auth: { condition: service_healthy }
+    environment:
+      NODE_ENV: test
+      PORT: 8080
+      MONGODB_URI: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017/tenant_sandbox?authSource=admin&replicaSet=sandbox-rs
+      AUTH_SERVICE_URL: http://auth:8080
+      AUTH_TENANT_TOKEN: ${AUTH_TENANT_TOKEN}
+      DOCUMENT_SERVICE_TOKEN: ${DOCUMENT_SERVICE_TOKEN:?Run npm run sandbox:init}
+      CHAT_SERVICE_TOKEN: ${CHAT_SERVICE_TOKEN:?Run npm run sandbox:init}
+      ALLOWED_ORIGINS: http://localhost:3000
+      APP_URL: http://localhost:3000
+      INVITATION_SECONDS: 604800
+    ports: ["127.0.0.1:${TENANT_PORT}:8080"]
+
+  document:
+    build:
+      context: ../..
+      dockerfile: services/document-service/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      s3-init: { condition: service_completed_successfully }
+      tenant: { condition: service_healthy }
+    environment:
+      PORT: 8080
+      MAX_UPLOAD_BYTES: 10485760
+      DOCUMENT_JDBC_URL: jdbc:postgresql://postgres:5432/document_sandbox
+      DOCUMENT_DATABASE_USERNAME: document
+      DOCUMENT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      DOCUMENT_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      DOCUMENT_S3_BUCKET: document-sandbox-private
+      DOCUMENT_S3_REGION: us-east-1
+      DOCUMENT_S3_ENDPOINT: http://s3:9000
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+      AWS_EC2_METADATA_DISABLED: "true"
+      DOCUMENT_UPLOAD_AUTH_URL: http://tenant:8080/internal/authorization/course
+      DOCUMENT_SERVICE_TOKEN: ${DOCUMENT_SERVICE_TOKEN}
+      DOCUMENT_AUTH_TIMEOUT_MS: 5000
+    ports: ["127.0.0.1:${DOCUMENT_PORT}:8080"]
+    networks: [sandbox]
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/health/ready"]
+      interval: 5s
+      timeout: 10s
+      retries: 40
+      start_period: 30s
+
+networks:
+  sandbox:
+    internal: true
+
+volumes:
+  mongo-data:
+  postgres-data:
+  redis-data:
+  s3-data:
