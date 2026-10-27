@@ -18,7 +18,6 @@ api_router.include_router(llm_router)
 v1_router = APIRouter(prefix="/api/v1")
 v1_router.include_router(chat_router, tags=["Chat"])
 v1_router.include_router(conversation_router, prefix="/conversations", tags=["Conversations"])
-v1_router.include_router(feedback_router, prefix="/feedback", tags=["Feedback"])
+v1_router.include_router(feedback_router, tags=["Feedback"])
 
 api_router.include_router(v1_router)
-
