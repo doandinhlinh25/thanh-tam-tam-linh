@@ -5,7 +5,7 @@ x-node: &node
     context: ../..
     dockerfile: infrastructure/sandbox/Node.Dockerfile
   restart: unless-stopped
-  networks: [sandbox]
+  networks: [sandbox, access]
   healthcheck:
     test:
       [
@@ -54,7 +54,7 @@ services:
     environment:
       MONGO_USERNAME: ${MONGO_USERNAME}
       MONGO_PASSWORD: ${MONGO_PASSWORD}
-    entrypoint: ["mongosh", "--quiet", "--file", "/bootstrap/mongo-init.js"]
+    entrypoint: ["mongosh", "--quiet", "--nodb", "--file", "/bootstrap/mongo-init.js"]
     volumes:
       - ./mongo-init.js:/bootstrap/mongo-init.js:ro
     networks: [sandbox]
@@ -112,7 +112,7 @@ services:
       - "127.0.0.1:${S3_PORT}:9000"
       - "127.0.0.1:${S3_CONSOLE_PORT}:9001"
     volumes: [s3-data:/data]
-    networks: [sandbox]
+    networks: [sandbox, access]
 
   s3-init:
     build:
@@ -198,7 +198,7 @@ services:
       DOCUMENT_SERVICE_TOKEN: ${DOCUMENT_SERVICE_TOKEN}
       DOCUMENT_AUTH_TIMEOUT_MS: 5000
     ports: ["127.0.0.1:${DOCUMENT_PORT}:8080"]
-    networks: [sandbox]
+    networks: [sandbox, access]
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/health/ready"]
       interval: 5s
@@ -209,6 +209,7 @@ services:
 networks:
   sandbox:
     internal: true
+  access: {}
 
 volumes:
   mongo-data:
