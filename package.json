@@ -16,7 +16,8 @@
     "sandbox:down": "node scripts/sandbox.mjs down",
     "sandbox:status": "node scripts/sandbox.mjs status",
     "sandbox:logs": "node scripts/sandbox.mjs logs",
-    "sandbox:smoke": "node scripts/sandbox.mjs smoke"
+    "sandbox:smoke": "node scripts/sandbox.mjs smoke",
+    "sandbox:fixtures": "node scripts/sandbox-fixtures.mjs"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

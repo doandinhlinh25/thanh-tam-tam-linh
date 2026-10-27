@@ -57,3 +57,14 @@ npm run sandbox:down
 down chỉ dừng/xóa container và mạng của sandbox, giữ các volume để chạy lại. Không thay đổi hoặc tái sinh secret trong .env khi đang dùng lại volume có dữ liệu. Nếu dịch vụ không ready, xem status và logs trước khi thử lại. Không chia sẻ output docker compose config vì lệnh đó có thể hiển thị secret; sandbox:check chỉ dùng config --quiet.
 
 MinIO và mc được build từ mã nguồn GitHub chính thức, cố định commit trong S3.Dockerfile; không phụ thuộc image minio/minio hoặc minio/mc công khai. Lần build đầu cần mạng và có thể lâu hơn các lần sau. Bộ này không tự thay đổi policy Kong/OPA của project.
+
+## Course và hai phiên tokenAdmin để kiểm tra quyền upload
+
+Sau khi Auth/Tenant ready, chạy `npm run sandbox:fixtures`. Lệnh tạo tenant/course thật qua API; thêm giảng viên được phân công và sinh viên đã ghi danh vào cùng course, đăng nhập bằng cả hai tài khoản rồi xác nhận:
+- Cả hai GET /admin/account/me và đọc course đều trả 200.
+- POST /internal/authorization/course với tokenAdmin giảng viên và DOCUMENT_SERVICE_TOKEN trả 200.
+- Cùng request với tokenAdmin sinh viên trả 403.
+
+Kết quả riêng tư nằm tại `.test-data/document-upload-fixture.json` và `.test-data/document-upload.postman_environment.json`. File đầu chứa ID, tài khoản thử, cookie, CSRF và thời hạn JWT; file sau có thể import vào Postman. Dùng header `Cookie: {{uploadAllowedCookie}}` hoặc `Cookie: {{uploadDeniedCookie}}`. Chỉ nhập raw JWT trong trường cookie tokenAdmin thì dùng `uploadAllowedToken` hoặc `uploadDeniedToken`.
+
+Mỗi lần chạy tạo bộ dữ liệu mới và thay file kết quả bằng bộ mới nhất. Các file .test-data có secret, được Git bỏ qua. JWT cấp qua API login với rememberPassword=true, không tự ký token. Chạy lệnh trên môi trường Docker sẽ tạo dữ liệu trong volume Docker; nếu chạy Auth/Tenant cục bộ thì dữ liệu thuộc MongoDB cục bộ tương ứng, không tự chuyển sang Docker.
