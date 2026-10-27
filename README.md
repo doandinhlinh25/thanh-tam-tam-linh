@@ -93,3 +93,7 @@ Khi chạy Compose chung, Auth/Tenant đọc `.env` tương ứng và dùng DNS 
 API nghiệp vụ giữ luồng cookie/CSRF và JWT đã triển khai; xem README của từng service.
 `npm run test:platform` chạy kiểm thử tích hợp Auth/Tenant bằng MongoDB replica set tạm và SMTP local.
 `.env`, file build, node_modules và dữ liệu test không được commit hoặc đưa vào Docker build context.
+
+## Môi trường thử Auth / Tenant / Document
+
+Bộ cô lập cho Auth, Tenant, Document, MongoDB replica set, PostgreSQL, Redis và S3: [hướng dẫn chạy](infrastructure/sandbox/README.md). Chạy npm run sandbox:init, npm run sandbox:up và npm run sandbox:smoke từ thư mục gốc. Bộ này dùng mạng/volume và token riêng, không cần ghép vào saas-gateway.

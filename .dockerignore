@@ -8,3 +8,7 @@ node_modules
 !**/.env.example
 .test-data/
 .npm-cache/
+
+.tools/
+
+.m2-cache/

@@ -25,13 +25,17 @@ The Maven Wrapper downloads its pinned Maven distribution automatically. Java 21
 
 ```bash
 curl -X POST 'http://localhost:8080/api/v1/courses/course-1/documents' \
-  -H 'Cookie: session=USER_SESSION' \
+  -H 'Cookie: tokenAdmin=USER_JWT' \
   -H 'Idempotency-Key: pdf-upload-1' \
   -F 'file=@example.pdf;type=application/pdf'
 ```
 
-The authorization filter sends the original session cookie and course ID to the configured internal Tenant Service endpoint before parsing the multipart body. Its successful response must be `{"successful":true,"data":{"allowed":true,"tenantId":"...","userId":"..."}}`; unauthorized and forbidden responses use HTTP 401 and 403. Tenant/user IDs from the client are ignored. The endpoint must authenticate the service token, validate the user session, and check course access. The current Tenant Service skeleton does not implement this endpoint yet, so uploads cannot be used end to end until that integration exists.
+The authorization filter sends the original session cookie and course ID to the configured internal Tenant Service endpoint before parsing the multipart body. Its successful response must be `{"successful":true,"data":{"allowed":true,"tenantId":"...","userId":"..."}}`; unauthorized and forbidden responses use HTTP 401 and 403. Tenant/user IDs from the client are ignored. The endpoint must authenticate the service token, validate the user session, and check course access. Tenant implements this endpoint at /internal/authorization/course; set DOCUMENT_UPLOAD_AUTH_URL to its internal address and give Tenant/Document the same DOCUMENT_SERVICE_TOKEN.
 
 The PDF is stored privately under `tenantId/courseId/documentId/1.pdf`. Metadata is stored in PostgreSQL. An event matching `contracts/events/document-ingest-requested.v1.schema.json` is added to the Redis Stream `document-ingestion` in its `payload` field. Consumers must check the document and tenant again and handle `jobId` idempotently. If publication fails, the upload stays `UPLOADED`; retrying with the same key and bytes publishes it again. Configure Redis persistence for durable processing.
 
 This implementation covers upload only. The contract's get, delete, retrieval, and PDF text-layer processing endpoints need separate implementation.
+
+## Isolated integration environment
+
+From the repository root, run npm run sandbox:init, npm run sandbox:up, then npm run sandbox:smoke. See [sandbox setup](../../infrastructure/sandbox/README.md). GET /health/live reports liveness; GET /health/ready checks PostgreSQL schema, Redis and S3 bucket access.
