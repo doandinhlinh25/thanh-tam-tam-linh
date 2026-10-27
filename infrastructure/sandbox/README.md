@@ -18,7 +18,7 @@ npm run sandbox:smoke
 
 sandbox:init sinh infrastructure/sandbox/.env với secret ngẫu nhiên riêng, giữ nguyên file nếu đã tồn tại. File mẫu chỉ chứa tên biến. Không lấy hoặc sửa .env của các service. AUTH_TENANT_TOKEN được truyền chung cho Auth/Tenant; DOCUMENT_SERVICE_TOKEN được truyền chung cho Tenant/Document. JWT_SECRET chỉ cấp cho Auth. CHAT_SERVICE_TOKEN là token riêng được dành cho API Chat của Tenant.
 
-Cả bộ dùng project name cố định saas-auth-tenant-document-test và network internal. Các database không publish cổng. Mặc định các cổng chỉ bind 127.0.0.1:
+Cả bộ dùng project name cố định saas-auth-tenant-document-test. MongoDB, PostgreSQL và Redis chỉ nằm trên mạng internal; Auth, Tenant, Document và MinIO có thêm mạng access để Docker publish cổng trên host. Các database không publish cổng. Mặc định các cổng chỉ bind 127.0.0.1:
 
 | Thành phần | URL |
 | --- | --- |
@@ -37,6 +37,8 @@ Document gọi đúng http://tenant:8080/internal/authorization/course và chuy�
 ## Kiểm tra
 
 sandbox:smoke thực hiện thật: kiểm tra readiness; đăng nhập; tạo hai tài khoản, tenant và course thử; xác thực token nội bộ; từ chối anonymous/người ngoài tenant; upload PDF và retry idempotent; kiểm tra metadata/checksum PostgreSQL, event Redis, byte lưu S3 và chặn đọc S3 anonymous.
+
+Sau `npm run sandbox:fixtures`, chạy `npm run sandbox:upload-e2e` để kiểm chứng U1–U7 trên course và hai phiên vừa tạo. Bài này đối chiếu metadata PostgreSQL, object S3 và event Redis trước–sau từng ca; ca U7 tạm dừng Tenant trong sandbox và tự khởi động lại. Chỉ chạy khi không có tác vụ khác dùng sandbox. Fixture và secret vẫn nằm trong `.test-data` được Git bỏ qua.
 
 Bài smoke giữ lại fixture theo ID được in ra để kiểm tra. Nó không dùng database ngoài sandbox. Chưa có worker xử lý ingestion trong stack này: kỳ vọng kết quả upload là QUEUED, không phải tài liệu đã trích xuất xong.
 

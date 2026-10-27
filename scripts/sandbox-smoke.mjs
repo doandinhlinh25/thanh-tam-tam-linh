@@ -4,7 +4,14 @@ import { compose } from "./sandbox.mjs";
 
 const sha256 = (data) => createHash("sha256").update(data).digest("hex");
 const hmac = (key, value) => createHmac("sha256", key).update(value).digest();
-function s3Authorization(env, url, method) {
+/**
+ * Signs a sandbox S3 request, including its canonical query string.
+ * @param {object} env sandbox credentials and ports
+ * @param {URL} url S3 request URL
+ * @param {string} method HTTP method
+ * @returns {object} request headers for SigV4 authentication
+ */
+export function s3Authorization(env, url, method) {
   const stamp = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
   const date = stamp.slice(0, 8),
     payload = sha256("");
@@ -12,7 +19,7 @@ function s3Authorization(env, url, method) {
   const headers =
     "host:" + url.host + "\nx-amz-content-sha256:" + payload + "\nx-amz-date:" + stamp + "\n";
   const signed = "host;x-amz-content-sha256;x-amz-date";
-  const canonical = [method, url.pathname, "", headers, signed, payload].join("\n");
+  const canonical = [method, url.pathname, url.search.slice(1), headers, signed, payload].join("\n");
   const key = hmac(
     hmac(hmac(hmac("AWS4" + env.S3_SECRET_KEY, date), "us-east-1"), "s3"),
     "aws4_request"

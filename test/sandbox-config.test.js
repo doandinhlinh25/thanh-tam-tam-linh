@@ -9,11 +9,15 @@ const config = parse(
   { merge: true }
 );
 
-test("sandbox uses a private project network and never publishes database ports", () => {
+test("sandbox keeps databases private and publishes application ports only to loopback", () => {
   assert.equal(config.name, "saas-auth-tenant-document-test");
   assert.equal(config.networks.sandbox.internal, true);
+  assert.equal(config.networks.access.internal, undefined);
   for (const [name, service] of Object.entries(config.services)) {
-    assert.deepEqual(service.networks, ["sandbox"], name);
+    const expectedNetworks = ["auth", "tenant", "document", "s3"].includes(name)
+      ? ["sandbox", "access"]
+      : ["sandbox"];
+    assert.deepEqual(service.networks, expectedNetworks, name);
     assert.equal(service.container_name, undefined);
     for (const port of service.ports || []) assert.ok(port.startsWith("127.0.0.1:"), name);
   }
@@ -65,6 +69,7 @@ test("sandbox waits for replica set, private bucket and real dependency readines
       .includes("mc anonymous set none")
   );
   assert.match(config.services.mongo.command[0], /--replSet sandbox-rs/);
+  assert.ok(config.services["mongo-init"].entrypoint.includes("--nodb"));
   for (const service of ["auth", "tenant", "document"]) {
     assert.ok(config.services[service].healthcheck.test.join(" ").includes("/health/ready"));
   }

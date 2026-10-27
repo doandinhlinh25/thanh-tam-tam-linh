@@ -1,8 +1,9 @@
 package com.linh.document.constants;
 
-/** Stable upload, storage, and event names owned by Document Service. */
+/** Các tên cố định cho tải lên, lưu trữ và sự kiện do Document Service quản lý. */
 public final class DocumentContract {
     public static final String UPLOAD_PATH = "/api/v1/courses/{courseId}/documents";
+    public static final String COURSE_ID_VARIABLE = "courseId";
     public static final String UPLOAD_PREFIX = "/api/v1/courses/";
     public static final String UPLOAD_SUFFIX = "/documents";
     public static final String FILE_FIELD = "file";
@@ -22,6 +23,8 @@ public final class DocumentContract {
     public static final int INITIAL_DOCUMENT_VERSION = 1;
     public static final int MAX_KEY_LENGTH = 128;
     public static final int MAX_FILE_NAME_LENGTH = 512;
+    public static final String SHA256_HEX_PATTERN = "[0-9a-fA-F]{64}";
+    public static final String NON_BLANK_PATTERN = ".*\\S.*";
 
     private DocumentContract() {
     }

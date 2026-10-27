@@ -18,7 +18,8 @@
     "sandbox:status": "node scripts/sandbox.mjs status",
     "sandbox:logs": "node scripts/sandbox.mjs logs",
     "sandbox:smoke": "node scripts/sandbox.mjs smoke",
-    "sandbox:fixtures": "node scripts/sandbox-fixtures.mjs"
+    "sandbox:fixtures": "node scripts/sandbox-fixtures.mjs",
+    "sandbox:upload-e2e": "node scripts/sandbox-upload-e2e.mjs"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
