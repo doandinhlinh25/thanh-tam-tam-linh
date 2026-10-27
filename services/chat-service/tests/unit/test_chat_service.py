@@ -501,3 +501,483 @@ async def test_chat_service_async_context_manager():
 
     mock_pipeline.close.assert_called_once()
 
+
+@pytest.mark.asyncio
+async def test_chat_service_creates_conversation_and_persists_messages_and_citations():
+    """Verify ChatService creates a new conversation, saves user question and assistant answer with citations."""
+    mock_pipeline = AsyncMock()
+    mock_cit = ChatCitation(
+        citation_id="cit-101",
+        evidence_id="ev-101",
+        source_type="official",
+        document_id="doc-guide",
+        document_name="Guide.pdf",
+        page_from=4,
+        page_to=4,
+        snippet="Môn học có 3 tín chỉ.",
+    )
+    mock_pipeline.run.return_value = PipelineResult(
+        result_state="answered",
+        answer="Môn học có 3 tín chỉ [1].",
+        citations=[mock_cit],
+        metadata={"model": "gpt-4o", "variant": "A"},
+    )
+
+    mock_conv_repo = AsyncMock()
+    mock_msg_repo = AsyncMock()
+
+    service = ChatService(
+        pipeline=mock_pipeline,
+        conversation_repo=mock_conv_repo,
+        message_repo=mock_msg_repo,
+    )
+
+    ctx = TenantContext(tenant_id="tenant-edu", user_id="student-1", course_id="cs101")
+    res = await service.answer_question(ctx, "Môn học này có bao nhiêu tín chỉ?")
+
+    assert res.result_state == "answered"
+    assert res.status == "answered"
+    assert res.refused is False
+    assert len(res.citations) == 1
+
+    # 1. Verify conversation was saved with title generated from query
+    assert mock_conv_repo.save.called
+    saved_conv = mock_conv_repo.save.call_args_list[0][0][0]
+    assert saved_conv.tenant_id == "tenant-edu"
+    assert saved_conv.user_id == "student-1"
+    assert saved_conv.course_id == "cs101"
+    assert "Môn học này có bao nhiêu tín chỉ?" in saved_conv.title
+
+    # 2. Verify messages were saved: 1 user message, 1 assistant message
+    assert mock_msg_repo.save.call_count == 2
+    user_saved = mock_msg_repo.save.call_args_list[0][0][0]
+    asst_saved = mock_msg_repo.save.call_args_list[1][0][0]
+
+    assert user_saved.role == "user"
+    assert user_saved.content == "Môn học này có bao nhiêu tín chỉ?"
+    assert asst_saved.role == "assistant"
+    assert asst_saved.content == "Môn học có 3 tín chỉ [1]."
+    assert asst_saved.refused is False
+    assert len(asst_saved.citations) == 1
+    assert asst_saved.citations[0].document_id == "doc-guide"
+
+    # 3. Verify OpenAPI response envelope
+    assert res.successful is True
+    assert res.data["conversation_id"] == saved_conv.id
+    assert res.data["message_id"] == asst_saved.id
+    assert res.data["status"] == "answered"
+    assert len(res.data["citations"]) == 1
+    assert res.data["citations"][0]["document_id"] == "doc-guide"
+
+
+@pytest.mark.asyncio
+async def test_chat_service_uses_existing_conversation_when_supplied():
+    """Verify ChatService reuses existing conversation thread when conversation_id is provided."""
+    from datetime import datetime, timezone
+    from app.domain.entities.conversation import Conversation
+
+    mock_pipeline = AsyncMock()
+    mock_pipeline.run.return_value = PipelineResult(
+        result_state="answered",
+        answer="Đúng vậy.",
+        citations=[],
+        metadata={},
+    )
+
+    mock_conv_repo = AsyncMock()
+    existing_conv = Conversation(
+        id="conv-existing-999",
+        tenant_id="tenant-edu",
+        user_id="student-1",
+        course_id="cs101",
+        title="Existing Thread",
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    mock_conv_repo.get_by_id.return_value = existing_conv
+
+    mock_msg_repo = AsyncMock()
+
+    service = ChatService(
+        pipeline=mock_pipeline,
+        conversation_repo=mock_conv_repo,
+        message_repo=mock_msg_repo,
+    )
+
+    ctx = TenantContext(tenant_id="tenant-edu", user_id="student-1", course_id="cs101")
+    res = await service.answer_question(ctx, "Tiếp tục bài trước", conversation_id="conv-existing-999")
+
+    mock_conv_repo.get_by_id.assert_called_once_with(
+        conversation_id="conv-existing-999",
+        tenant_id="tenant-edu",
+        user_id="student-1",
+    )
+    assert res.conversation_id == "conv-existing-999"
+
+
+@pytest.mark.asyncio
+async def test_chat_service_refusal_persistence_insufficient_evidence():
+    """Verify safe refusal persistence with refusal flags and empty citations."""
+    mock_pipeline = AsyncMock()
+    mock_pipeline.run.return_value = PipelineResult(
+        result_state="insufficient_evidence",
+        answer="Xin lỗi, tài liệu không đủ thông tin.",
+        citations=[],
+        metadata={},
+    )
+
+    mock_conv_repo = AsyncMock()
+    mock_msg_repo = AsyncMock()
+
+    service = ChatService(
+        pipeline=mock_pipeline,
+        conversation_repo=mock_conv_repo,
+        message_repo=mock_msg_repo,
+    )
+
+    ctx = TenantContext(tenant_id="t1", user_id="u1", course_id="c1")
+    res = await service.answer_question(ctx, "Hỏi điều vô lý?")
+
+    assert res.result_state == "insufficient_evidence"
+    assert res.refused is True
+    assert res.refusal_reason == "insufficient_evidence"
+    assert res.citations == []
+
+    # Check assistant message was saved with refused=True
+    asst_saved = mock_msg_repo.save.call_args_list[1][0][0]
+    assert asst_saved.refused is True
+    assert asst_saved.refusal_reason == "insufficient_evidence"
+    assert asst_saved.citations == []
+
+
+@pytest.mark.asyncio
+async def test_chat_service_long_query_title_truncation():
+    """Verify long questions are truncated cleanly with ellipsis in conversation title."""
+    mock_pipeline = AsyncMock()
+    mock_pipeline.run.return_value = PipelineResult(
+        result_state="answered",
+        answer="Trả lời",
+        citations=[],
+        metadata={},
+    )
+    mock_conv_repo = AsyncMock()
+    mock_msg_repo = AsyncMock()
+
+    service = ChatService(
+        pipeline=mock_pipeline,
+        conversation_repo=mock_conv_repo,
+        message_repo=mock_msg_repo,
+    )
+
+    ctx = TenantContext(tenant_id="t1", user_id="u1", course_id="c1")
+    long_question = "A" * 120
+    await service.answer_question(ctx, long_question)
+
+    saved_conv = mock_conv_repo.save.call_args_list[0][0][0]
+    assert len(saved_conv.title) <= 50
+    assert saved_conv.title.endswith("...")
+
+
+@pytest.mark.asyncio
+async def test_chat_service_conflict_scenarios():
+    """Verify ConflictException is raised when conversation does not match requested course or source scope."""
+    from app.core.exceptions import ConflictException
+    from app.domain.entities.conversation import Conversation
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    mock_conv_repo = AsyncMock()
+    mock_msg_repo = AsyncMock()
+    mock_pipeline = AsyncMock()
+
+    service = ChatService(
+        pipeline=mock_pipeline,
+        conversation_repo=mock_conv_repo,
+        message_repo=mock_msg_repo,
+    )
+
+    # 1. Course mismatch: conv course-A, request course-B
+    conv_a = Conversation(
+        id="c-a", tenant_id="t1", user_id="u1", course_id="course-A",
+        source_scope="course_only", title="A", created_at=now, updated_at=now,
+    )
+    mock_conv_repo.get_by_id.return_value = conv_a
+    ctx_b = TenantContext(tenant_id="t1", user_id="u1", course_id="course-B")
+    with pytest.raises(ConflictException):
+        await service.answer_question(ctx_b, "Question", conversation_id="c-a")
+
+    # 2. Personal conversation used in course chat: conv course_id is None, request course-A
+    conv_personal = Conversation(
+        id="c-p", tenant_id="t1", user_id="u1", course_id=None,
+        source_scope="personal_only", title="Personal", created_at=now, updated_at=now,
+    )
+    mock_conv_repo.get_by_id.return_value = conv_personal
+    ctx_course = TenantContext(tenant_id="t1", user_id="u1", course_id="course-A")
+    with pytest.raises(ConflictException):
+        await service.answer_question(ctx_course, "Question", conversation_id="c-p", source_scope="course_only")
+
+    # 3. Course conversation used in personal chat: conv course-A, request course_id is None
+    mock_conv_repo.get_by_id.return_value = conv_a
+    ctx_personal = TenantContext(tenant_id="t1", user_id="u1", course_id=None)
+    with pytest.raises(ConflictException):
+        await service.answer_question(ctx_personal, "Question", conversation_id="c-a", source_scope="personal_only")
+
+    # 4. Source scope mismatch: conv course_only, request combined
+    mock_conv_repo.get_by_id.return_value = conv_a
+    ctx_same_course = TenantContext(tenant_id="t1", user_id="u1", course_id="course-A")
+    with pytest.raises(ConflictException):
+        await service.answer_question(ctx_same_course, "Question", conversation_id="c-a", source_scope="combined")
+
+
+@pytest.mark.asyncio
+async def test_chat_service_conversation_not_found_raises_404():
+    """Verify NotFoundException when supplied conversation_id does not exist."""
+    from app.core.exceptions import NotFoundException
+    mock_conv_repo = AsyncMock()
+    mock_conv_repo.get_by_id.return_value = None
+
+    service = ChatService(
+        pipeline=AsyncMock(),
+        conversation_repo=mock_conv_repo,
+        message_repo=AsyncMock(),
+    )
+    ctx = TenantContext(tenant_id="t1", user_id="u1", course_id="c1")
+    with pytest.raises(NotFoundException):
+        await service.answer_question(ctx, "Question", conversation_id="c-missing")
+
+
+@pytest.mark.asyncio
+async def test_chat_service_transaction_rollback_on_pipeline_failure():
+    """Verify active UOW rolls back when pipeline execution fails."""
+    mock_pipeline = AsyncMock()
+    mock_pipeline.run.side_effect = RuntimeError("Inference cluster offline")
+
+    mock_uow = AsyncMock()
+    mock_conv_repo = AsyncMock()
+    mock_msg_repo = AsyncMock()
+
+    service = ChatService(
+        pipeline=mock_pipeline,
+        uow=mock_uow,
+        conversation_repo=mock_conv_repo,
+        message_repo=mock_msg_repo,
+    )
+
+    ctx = TenantContext(tenant_id="t1", user_id="u1", course_id="c1")
+    with pytest.raises(RuntimeError):
+        await service.answer_question(ctx, "Will fail")
+
+    mock_uow.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_chat_service_handles_dict_citations_seamlessly():
+    """Verify ChatService correctly handles citations passed as plain dictionaries without field loss."""
+    dict_citation = {
+        "citation_id": "cit-dict-1",
+        "evidence_id": "ev-dict-1",
+        "source_type": "official",
+        "document_id": "doc-dict-123",
+        "document_name": "CourseHandbook.pdf",
+        "page_from": 5,
+        "page_to": 6,
+        "snippet": "Nội dung minh chứng quan trọng.",
+    }
+    mock_pipeline = AsyncMock()
+    mock_pipeline.run.return_value = PipelineResult(
+        result_state="answered",
+        answer="Câu trả lời với trích dẫn dict [1].",
+        citations=[dict_citation],
+        metadata={"model": "gpt-4o", "variant": "A"},
+    )
+    mock_conv_repo = AsyncMock()
+    mock_msg_repo = AsyncMock()
+
+    service = ChatService(
+        pipeline=mock_pipeline,
+        conversation_repo=mock_conv_repo,
+        message_repo=mock_msg_repo,
+    )
+
+    ctx = TenantContext(tenant_id="t1", user_id="u1", course_id="c1")
+    res = await service.answer_question(ctx, "Hỏi về sổ tay khóa học?")
+
+    assert res.result_state == "answered"
+    assert len(res.data["citations"]) == 1
+    cit = res.data["citations"][0]
+    assert cit["document_id"] == "doc-dict-123"
+    assert cit["document_name"] == "CourseHandbook.pdf"
+    assert cit["page_from"] == 5
+    assert cit["page_to"] == 6
+    assert cit["snippet"] == "Nội dung minh chứng quan trọng."
+
+
+@pytest.mark.asyncio
+async def test_conversation_service_unit_crud_and_isolation():
+    """Verify ConversationService list, get, and delete operations in isolation."""
+    from datetime import datetime, timezone
+    from app.services.conversation_service import ConversationService
+    from app.domain.entities.conversation import Conversation
+    from app.domain.entities.message import Message
+
+    now = datetime.now(timezone.utc)
+    conv = Conversation(
+        id="conv-u-1",
+        tenant_id="t-u",
+        user_id="user-u",
+        course_id="c-math",
+        source_scope="course_only",
+        title="Math QA",
+        created_at=now,
+        updated_at=now,
+    )
+    msg = Message(
+        id="msg-u-1",
+        conversation_id="conv-u-1",
+        role="assistant",
+        content="Answer math",
+        citations=[
+            {
+                "document_id": "doc-m",
+                "document_name": "Math.pdf",
+                "evidence_id": "ev-m",
+                "page_from": 10,
+                "page_to": 11,
+                "snippet": "Công thức giải tích",
+            }
+        ],
+        created_at=now,
+    )
+
+    mock_conv_repo = AsyncMock()
+    mock_conv_repo.list_by_user.return_value = [conv]
+    mock_conv_repo.get_by_id.return_value = conv
+    mock_msg_repo = AsyncMock()
+    mock_msg_repo.list_by_conversation.return_value = [msg]
+    mock_fb_repo = AsyncMock()
+    mock_uow = AsyncMock()
+
+    service = ConversationService(
+        conversation_repo=mock_conv_repo,
+        message_repo=mock_msg_repo,
+        feedback_repo=mock_fb_repo,
+        uow=mock_uow,
+    )
+
+    # 1. List
+    list_res = await service.list_conversations(tenant_id="t-u", user_id="user-u")
+    assert list_res["successful"] is True
+    assert len(list_res["data"]["items"]) == 1
+    assert list_res["data"]["items"][0]["conversation_id"] == "conv-u-1"
+
+    # 2. Get
+    get_res = await service.get_conversation(tenant_id="t-u", user_id="user-u", conversation_id="conv-u-1")
+    assert get_res["successful"] is True
+    assert len(get_res["data"]["messages"]) == 1
+    m_data = get_res["data"]["messages"][0]
+    assert m_data["citations"][0]["document_id"] == "doc-m"
+    assert m_data["citations"][0]["snippet"] == "Công thức giải tích"
+
+    # 3. Delete
+    del_res = await service.delete_conversation(tenant_id="t-u", user_id="user-u", conversation_id="conv-u-1")
+    assert del_res["successful"] is True
+    assert del_res["data"]["deleted"] is True
+    mock_fb_repo.delete_by_conversation.assert_awaited_once_with("conv-u-1")
+    mock_msg_repo.delete_by_conversation.assert_awaited_once_with("conv-u-1")
+    mock_conv_repo.delete.assert_awaited_once_with(
+        conversation_id="conv-u-1",
+        tenant_id="t-u",
+        user_id="user-u",
+        hard_delete=True,
+    )
+    mock_uow.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_conversation_service_not_found_isolation():
+    """Verify ConversationService raises NotFoundException when conversation is not owned or missing."""
+    from app.services.conversation_service import ConversationService
+    from app.core.exceptions import NotFoundException
+
+    mock_conv_repo = AsyncMock()
+    mock_conv_repo.get_by_id.return_value = None
+
+    service = ConversationService(
+        conversation_repo=mock_conv_repo,
+        message_repo=AsyncMock(),
+    )
+
+    with pytest.raises(NotFoundException):
+        await service.get_conversation(tenant_id="t1", user_id="u1", conversation_id="missing")
+
+    with pytest.raises(NotFoundException):
+        await service.delete_conversation(tenant_id="t1", user_id="u1", conversation_id="missing")
+
+
+@pytest.mark.asyncio
+async def test_feedback_service_unit_submit_and_update():
+    """Verify FeedbackService validates message, rating, updates existing records, and rejects non-assistant messages."""
+    from app.services.feedback_service import FeedbackService
+    from app.domain.entities.message import Message
+    from app.domain.entities.feedback import Feedback
+    from app.core.exceptions import NotFoundException, ValidationException
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    mock_fb_repo = AsyncMock()
+    mock_msg_repo = AsyncMock()
+    mock_uow = AsyncMock()
+
+    service = FeedbackService(
+        feedback_repo=mock_fb_repo,
+        message_repo=mock_msg_repo,
+        uow=mock_uow,
+    )
+
+    # 1. Message not found raises 404
+    mock_msg_repo.get_by_id.return_value = None
+    with pytest.raises(NotFoundException):
+        await service.submit_feedback(message_id="msg-404", user_id="u1", rating="positive")
+
+    # 2. Message is user role raises 400
+    user_msg = Message(id="msg-user", conversation_id="c1", role="user", content="Question", created_at=now)
+    mock_msg_repo.get_by_id.return_value = user_msg
+    with pytest.raises(ValidationException):
+        await service.submit_feedback(message_id="msg-user", user_id="u1", rating="positive")
+
+    # 3. Invalid rating string raises 400
+    asst_msg = Message(id="msg-asst", conversation_id="c1", role="assistant", content="Answer", created_at=now)
+    mock_msg_repo.get_by_id.return_value = asst_msg
+    with pytest.raises(ValidationException):
+        await service.submit_feedback(message_id="msg-asst", user_id="u1", rating="so-so")
+
+    # 4. Comment exceeds 2000 chars raises 400
+    with pytest.raises(ValidationException):
+        await service.submit_feedback(message_id="msg-asst", user_id="u1", rating="positive", comment="x" * 2001)
+
+    # 5. Boolean rating properly mapped
+    mock_fb_repo.get_by_message_and_user.return_value = None
+    res_bool_true = await service.submit_feedback(message_id="msg-asst", user_id="u1", rating=True)
+    assert res_bool_true["data"]["rating"] == "positive"
+
+    res_bool_false = await service.submit_feedback(message_id="msg-asst", user_id="u1", rating=False)
+    assert res_bool_false["data"]["rating"] == "negative"
+
+    # 6. Update existing feedback preserves feedback_id
+    existing_fb = Feedback(
+        id="fb-existing-id",
+        message_id="msg-asst",
+        user_id="u1",
+        rating="positive",
+        comment="Old comment",
+        created_at=now,
+        updated_at=now,
+    )
+    mock_fb_repo.get_by_message_and_user.return_value = existing_fb
+    update_res = await service.submit_feedback(message_id="msg-asst", user_id="u1", rating="negative", comment="New comment")
+    assert update_res["data"]["feedback_id"] == "fb-existing-id"
+    assert update_res["data"]["rating"] == "negative"
+    mock_uow.commit.assert_awaited()
+
+
+
