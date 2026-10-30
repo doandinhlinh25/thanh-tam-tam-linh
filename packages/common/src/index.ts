@@ -1,5 +1,6 @@
-const ISO_INSTANT_WITH_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+const ISO_INSTANT_WITH_OFFSET = /^(?<calendarDate>\d{4}-\d{2}-\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 const ZERO_MILLISECONDS_SUFFIX = /\.000Z$/;
+const MIDNIGHT_UTC_SUFFIX = "T00:00:00Z";
 const INVALID_INSTANT_MESSAGE = "Timestamp must be an ISO 8601 value with an offset";
 const INVALID_ERROR_MESSAGE = "Error details are required";
 
@@ -33,13 +34,34 @@ export function success<T>(responseData: T): ApiResponse<T> {
  * @throws {TypeError} When required error details are missing.
  */
 export function failure(errorResponse: ApiErrorResponse): ApiResponse<never> {
-  if (!errorResponse || !errorResponse.errorCode || !errorResponse.errorMessage || !errorResponse.fieldErrors) {
+  const fieldErrors = errorResponse?.fieldErrors;
+  const fieldErrorsPrototype = fieldErrors && typeof fieldErrors === "object"
+    ? Object.getPrototypeOf(fieldErrors)
+    : undefined;
+  const fieldErrorsDescriptors = fieldErrorsPrototype === Object.prototype || fieldErrorsPrototype === null
+    ? Object.getOwnPropertyDescriptors(fieldErrors)
+    : undefined;
+  if (
+    !errorResponse ||
+    typeof errorResponse.errorCode !== "string" || !errorResponse.errorCode ||
+    typeof errorResponse.errorMessage !== "string" || !errorResponse.errorMessage ||
+    !fieldErrorsDescriptors ||
+    !Reflect.ownKeys(fieldErrorsDescriptors).every((fieldKey) =>
+      typeof fieldKey === "string" &&
+      fieldErrorsDescriptors[fieldKey].enumerable === true &&
+      Object.hasOwn(fieldErrorsDescriptors[fieldKey], "value") &&
+      typeof fieldErrorsDescriptors[fieldKey].value === "string"
+    )
+  ) {
     throw new TypeError(INVALID_ERROR_MESSAGE);
   }
+  const validatedFieldErrors = Object.fromEntries(
+    Object.entries(fieldErrorsDescriptors).map(([fieldKey, descriptor]) => [fieldKey, descriptor.value])
+  );
   const immutableError = Object.freeze({
     errorCode: errorResponse.errorCode,
     errorMessage: errorResponse.errorMessage,
-    fieldErrors: Object.freeze({ ...errorResponse.fieldErrors })
+    fieldErrors: Object.freeze(validatedFieldErrors)
   });
   return { successful: false, data: null, error: immutableError };
 }
@@ -63,11 +85,18 @@ export function formatInstant(dateTime: Date): string {
  * @throws {RangeError} When the timestamp is invalid or lacks an offset.
  */
 export function parseInstant(timestamp: string): Date {
-  if (!ISO_INSTANT_WITH_OFFSET.test(timestamp)) {
+  const match = ISO_INSTANT_WITH_OFFSET.exec(timestamp);
+  if (!match) {
     throw new RangeError(INVALID_INSTANT_MESSAGE);
   }
+  const sourceCalendarDate = match.groups!.calendarDate;
+  const calendarDate = new Date(sourceCalendarDate + MIDNIGHT_UTC_SUFFIX);
   const parsedDate = new Date(timestamp);
-  if (Number.isNaN(parsedDate.getTime())) {
+  if (
+    Number.isNaN(calendarDate.getTime()) ||
+    !calendarDate.toISOString().startsWith(sourceCalendarDate) ||
+    Number.isNaN(parsedDate.getTime())
+  ) {
     throw new RangeError(INVALID_INSTANT_MESSAGE);
   }
   return parsedDate;
