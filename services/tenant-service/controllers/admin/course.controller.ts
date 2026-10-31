@@ -189,6 +189,31 @@ export const enrollStudent = async (req: AccountRequest, res: Response) => {
 };
 
 /**
+ * Import ghi danh sinh viên hàng loạt; trả kết quả theo từng dòng
+ */
+export const importEnrollments = async (req: AccountRequest, res: Response) => {
+  try {
+    const tenantId = String(req.tenantId || req.params.tenantId);
+    const courseId = String(req.params.courseId);
+
+    const result = await CourseService.importEnrollments({
+      tenantId,
+      courseId,
+      rows: req.body.rows,
+      actorId: req.adminId!
+    });
+
+    res.json({
+      code: "success",
+      message: "Import ghi danh hoàn tất!",
+      ...result
+    });
+  } catch (error) {
+    errorResponse(res, error);
+  }
+};
+
+/**
  * Hủy ghi danh sinh viên khỏi môn học
  */
 export const unenrollStudent = async (req: AccountRequest, res: Response) => {

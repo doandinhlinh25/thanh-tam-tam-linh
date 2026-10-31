@@ -1,12 +1,15 @@
 import mongoose from "mongoose";
 import slugify from "slugify";
 import Course, { CourseStatus } from "../models/course.model";
-import CourseEnrollment from "../models/course-enrollment.model";
+import CourseEnrollment, { ICourseEnrollment } from "../models/course-enrollment.model";
 import LecturerAssignment from "../models/lecturer-assignment.model";
 import TenantMembership from "../models/tenant-membership.model";
 import Tenant from "../models/tenant.model";
 import { ServiceError } from "../helpers/error.helper";
 import { withTenant, escapeRegex } from "../helpers/tenant.helper";
+import { extractCandidateUserIds, planEnrollmentImport } from "../helpers/enrollment-import.helper";
+
+type UpdateQuery = mongoose.UpdateQuery<ICourseEnrollment>;
 
 export class CourseService {
   /** Lecturer phải được phân công; student phải có enrollment đang hoạt động. */
@@ -279,6 +282,74 @@ export class CourseService {
           { status: "active", enrolledAt: new Date(), completedAt: null },
           { upsert: true, new: true, session }
         );
+      }
+    );
+  }
+
+  /**
+   * Import ghi danh hàng loạt: một transaction cho cả lô, dòng lỗi được báo theo dòng
+   * thay vì throw, nên chỉ lỗi cấp request hoặc lỗi hạ tầng mới làm hỏng cả lô.
+   */
+  static async importEnrollments(data: {
+    tenantId: string;
+    courseId: string;
+    rows: unknown[];
+    actorId: string;
+  }) {
+    return withTenant(
+      data.tenantId,
+      data.actorId,
+      ["tenant_owner", "tenant_admin"],
+      async (_tenant, session) => {
+        const course = await Course.findOne({
+          _id: data.courseId,
+          tenantId: data.tenantId,
+          deleted: false
+        }).session(session);
+        if (!course) throw new ServiceError("Không tìm thấy môn học!", 404);
+        const candidateIds = extractCandidateUserIds(data.rows);
+        const students = await TenantMembership.find({
+          tenantId: data.tenantId,
+          userId: { $in: candidateIds },
+          deleted: false,
+          status: "active",
+          role: "student"
+        })
+          .select("userId")
+          .session(session)
+          .lean();
+        const existing = await CourseEnrollment.find({
+          tenantId: data.tenantId,
+          courseId: data.courseId,
+          userId: { $in: candidateIds }
+        })
+          .select("userId status")
+          .session(session)
+          .lean();
+        const plan = planEnrollmentImport(data.rows, {
+          activeStudentIds: new Set(students.map((member) => String(member.userId))),
+          enrollmentStatusByUser: new Map(
+            existing.map((enrollment) => [String(enrollment.userId), enrollment.status])
+          )
+        });
+        const enrolledAt = new Date();
+        const writes: mongoose.AnyBulkWriteOperation<ICourseEnrollment>[] = plan.results
+          .filter((result) => ["created", "reactivated"].includes(result.outcome))
+          .map((result) => ({
+            updateOne: {
+              // Guard trạng thái để bulkWrite không bao giờ ghi đè enrollment active/completed.
+              filter: {
+                tenantId: data.tenantId,
+                courseId: data.courseId,
+                userId: result.userId!,
+                status: { $nin: ["active", "completed"] as const }
+              },
+              update: { $set: { status: "active", enrolledAt, completedAt: null } } as UpdateQuery,
+              upsert: true
+            }
+          }));
+        if (writes.length) await CourseEnrollment.bulkWrite(writes, { session, ordered: true });
+        return plan;
       }
     );
   }

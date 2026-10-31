@@ -84,6 +84,15 @@ router.post(
   courseController.enrollStudent
 );
 
+// Import ghi danh sinh viên hàng loạt (JSON, tối đa 500 dòng)
+router.post(
+  "/:tenantId/courses/:courseId/enroll/import",
+  resolveTenant,
+  checkPermission("course-enroll-student"),
+  courseValidate.importEnrollments,
+  courseController.importEnrollments
+);
+
 // Hủy ghi danh sinh viên
 router.delete(
   "/:tenantId/courses/:courseId/unenroll/:userId",

@@ -1,0 +1,149 @@
+
+> test
+> npm run build && node --test test/*.test.js && npm run test --workspaces --if-present && npm run test:platform && npm run test:import
+
+
+> build
+> npm run build --workspaces --if-present
+
+
+> @saas/common@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/http@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/auth-service@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/billing-service@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/identity-service@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/notification-service@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/tenant-service@1.0.0 build
+> tsc -p tsconfig.json
+
+✔ Chat contract exposes chat, history, feedback and privacy routes (0.989319ms)
+✔ Chat result distinguishes evidence-backed answers from refusals (0.218959ms)
+✔ internal evidence contract scopes retrieval and versions the reranker (0.143679ms)
+✔ sandbox keeps databases private and publishes application ports only to loopback (1.274142ms)
+✔ sandbox injects the same credentials on both ends of each service contract (0.218508ms)
+✔ sandbox waits for replica set, private bucket and real dependency readiness (0.284832ms)
+✔ sandbox environment generation preserves existing secrets and rejects unsafe configuration (6.845448ms)
+✔ each service owns its route, controller, service and response DTO (60.213642ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 196.41565
+
+> @saas/common@1.0.0 test
+> node --test test/*.test.js
+
+✔ success and failure have distinct API states (1.49785ms)
+✔ instant conversion requires an offset (0.488513ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46.103884
+
+> @saas/http@1.0.0 test
+> node --test test/*.test.js
+
+✔ HTTP boundary parses JSON and standardizes unknown routes (50.022009ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 183.961846
+
+> test:platform
+> tsx --test --test-concurrency=1 test/platform.integration.ts
+
+✔ Super Admin: env login, middleware permissions, no AccountAdmin document and normal login fallback (2578.114247ms)
+✔ JWT: duy-tam login/logout, bcrypt, expiry, signature and privilege checks (187.688002ms)
+✔ Auth: cookie/JWT, generic login failure, Origin and password-hash serialization (243.658577ms)
+✔ Tenant: create owner atomically, reject fake identity, invalid input and absent CSRF (60.609601ms)
+✔ Tenant: member list, owner settings, student/course ACL and Document authorization (230.108703ms)
+✔ Quota: concurrent requests respect limit; retries are idempotent and bound to user/course (163.151263ms)
+✔ Membership: protect final owner; revoke immediately and clear enrollment before restore (72.134118ms)
+✔ Invitations: activation, exact recipient, one-use token, resend invalidates previous token (835.171165ms)
+✔ Auth regression: profile search, active invitations and forgot do not revoke JWT (294.44929ms)
+✔ Tenant regression: full member quota blocks invitations and multipart fields are bounded (38.85557ms)
+✔ Auth JWT: logout clears cookie; expiry/reset invalidate JWT; malformed JSON returns 400 (368.621873ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6012.561996
+
+> test:import
+> npm run test:import:unit && npm run test:import:integration
+
+
+> test:import:unit
+> tsx --test test/unit/enrollment-import.test.ts
+
+✔ U-ST1 NONE --import[student]--> active: created (1.375382ms)
+✔ U-ST2 dropped --import[student]--> active: reactivated (0.237434ms)
+✔ U-ST3 active --import--> active: skipped, không ghi lại (0.231543ms)
+✔ U-ST4 completed --import--> completed: transition bị cấm (0.183563ms)
+✔ U-ST5 NONE --import[không phải student active]--> NONE: rejected (0.191588ms)
+✔ U-ST6 dropped --import[member đã bị thu hồi]--> dropped: không hồi sinh quyền (0.163937ms)
+✔ U-N1 (negative) dòng sai định dạng bị rejected, không throw (0.394457ms)
+✔ U-N2 (negative) trùng trong lô: lần đầu thắng, kể cả khác hoa/thường (0.211465ms)
+✔ U-INV dòng lỗi ở đầu/giữa/cuối không đổi outcome của dòng hợp lệ (invariant) (0.359351ms)
+✔ U-SUM summary đếm đúng từng outcome và chỉ dòng created/reactivated là cần ghi (0.22956ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.024285
+
+> test:import:integration
+> tsx --test --test-concurrency=1 test/enrollment-import.integration.ts
+
+✔ IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ (2284.532192ms)
+✔ IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại (82.593722ms)
+✔ IT-03 (AC4, negative) lecturer/student không được import và không có gì được ghi (173.79535ms)
+✔ IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200 (77.520485ms)
+✔ IT-05 (AC4, failure path) môn học đã xóa mềm → 404, không ghi enrollment (27.347748ms)
+✔ IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn (45.948509ms)
+✔ IT-07 (contract) member bị thu hồi không được import hồi sinh quyền hỏi trợ giảng (30.63802ms)
+✔ IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng (87.637844ms)
+✔ IT-R1 (AC5, regression/characterization) behavior ghi danh đơn lẻ và ACL không đổi (161.758842ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3925.334465

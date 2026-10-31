@@ -1,0 +1,21 @@
+
+> test:import:integration
+> tsx --test --test-concurrency=1 test/enrollment-import.integration.ts
+
+✔ IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ (2196.725456ms)
+✔ IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại (100.521438ms)
+✔ IT-03 (AC4, negative) lecturer/student không được import và không có gì được ghi (226.644506ms)
+✔ IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200 (89.376811ms)
+✔ IT-05 (AC4, failure path) môn học đã xóa mềm → 404, không ghi enrollment (31.607246ms)
+✔ IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn (65.023252ms)
+✔ IT-07 (contract) member bị thu hồi không được import hồi sinh quyền hỏi trợ giảng (35.747505ms)
+✔ IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng (90.383452ms)
+✔ IT-R1 (AC5, regression/characterization) behavior ghi danh đơn lẻ và ACL không đổi (217.111265ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3954.427293

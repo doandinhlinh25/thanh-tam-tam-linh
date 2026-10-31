@@ -1,0 +1,22 @@
+
+> test:import:unit
+> tsx --test test/unit/enrollment-import.test.ts
+
+✔ U-ST1 NONE --import[student]--> active: created (1.323774ms)
+✔ U-ST2 dropped --import[student]--> active: reactivated (0.176149ms)
+✔ U-ST3 active --import--> active: skipped, không ghi lại (0.140021ms)
+✔ U-ST4 completed --import--> completed: transition bị cấm (0.114134ms)
+✔ U-ST5 NONE --import[không phải student active]--> NONE: rejected (0.1285ms)
+✔ U-ST6 dropped --import[member đã bị thu hồi]--> dropped: không hồi sinh quyền (0.137196ms)
+✔ U-N1 (negative) dòng sai định dạng bị rejected, không throw (0.296704ms)
+✔ U-N2 (negative) trùng trong lô: lần đầu thắng, kể cả khác hoa/thường (0.1926ms)
+✔ U-INV dòng lỗi ở đầu/giữa/cuối không đổi outcome của dòng hợp lệ (invariant) (0.339204ms)
+✔ U-SUM summary đếm đúng từng outcome và chỉ dòng created/reactivated là cần ghi (0.21439ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 142.15685

@@ -1,0 +1,32 @@
+
+> typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> @saas/common@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @saas/http@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @saas/auth-service@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @saas/billing-service@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @saas/identity-service@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @saas/notification-service@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> @saas/tenant-service@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+

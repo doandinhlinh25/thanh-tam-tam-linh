@@ -1,5 +1,6 @@
 import Joi from "joi";
 import { validateBody, objectId } from "../../helpers/validation.helper";
+import { MAX_IMPORT_ROWS } from "../../helpers/enrollment-import.helper";
 
 const name = Joi.string().trim().min(1).max(150);
 const description = Joi.string().trim().max(2000).allow("");
@@ -20,3 +21,7 @@ export const createCourse = validateBody(
 export const editCourse = validateBody(Joi.object({ name, description, status }).min(1));
 export const assignLecturer = validateBody(Joi.object({ userId: objectId.required() }));
 export const enrollStudent = validateBody(Joi.object({ userId: objectId.required() }));
+// Chỉ ràng buộc kích thước lô; từng dòng do planner kiểm tra để một dòng sai không chặn cả lô.
+export const importEnrollments = validateBody(
+  Joi.object({ rows: Joi.array().items(Joi.any()).min(1).max(MAX_IMPORT_ROWS).required() })
+);

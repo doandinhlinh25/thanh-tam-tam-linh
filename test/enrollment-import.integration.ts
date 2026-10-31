@@ -32,7 +32,9 @@ const rowsOf = (...userIds: unknown[]) => userIds.map((userId) => ({ userId: Str
 const enrollments = (courseId: mongoose.Types.ObjectId) =>
   harness.tenantDb.collection("course_enrollments").find({ courseId }).toArray();
 const statusMap = async (courseId: mongoose.Types.ObjectId) =>
-  Object.fromEntries((await enrollments(courseId)).map((item) => [String(item.userId), item.status]));
+  Object.fromEntries(
+    (await enrollments(courseId)).map((item) => [String(item.userId), item.status])
+  );
 
 /** Tenant có 1 course, `students` thành viên student active và 1 lecturer. */
 const setup = async (students = 3) => {
@@ -89,8 +91,22 @@ test("IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi
   const longAgo = new Date("2026-01-01T00:00:00.000Z");
   const completedAt = new Date("2026-06-01T00:00:00.000Z");
   await harness.tenantDb.collection("course_enrollments").insertMany([
-    { tenantId, courseId, userId: dropped, status: "dropped", enrolledAt: longAgo, completedAt: null },
-    { tenantId, courseId, userId: active, status: "active", enrolledAt: longAgo, completedAt: null },
+    {
+      tenantId,
+      courseId,
+      userId: dropped,
+      status: "dropped",
+      enrolledAt: longAgo,
+      completedAt: null
+    },
+    {
+      tenantId,
+      courseId,
+      userId: active,
+      status: "active",
+      enrolledAt: longAgo,
+      completedAt: null
+    },
     { tenantId, courseId, userId: completed, status: "completed", enrolledAt: longAgo, completedAt }
   ]);
   const rows = rowsOf(fresh, dropped, active, completed);
