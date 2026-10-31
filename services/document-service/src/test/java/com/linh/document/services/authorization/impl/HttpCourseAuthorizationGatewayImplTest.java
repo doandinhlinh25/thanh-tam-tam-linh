@@ -94,4 +94,48 @@ class HttpCourseAuthorizationGatewayImplTest {
 
         assertEquals(HttpStatus.FORBIDDEN, error.status());
     }
+
+    @Test
+    void propagatesTenantUnauthorized() {
+        responseStatus.set(HttpStatus.UNAUTHORIZED.value());
+        DocumentException error = assertThrows(DocumentException.class, () -> gateway.authorize(COURSE_ID, COOKIE));
+        assertEquals(HttpStatus.UNAUTHORIZED, error.status());
+    }
+
+    @Test
+    void mapsTenantFailureAndMalformedSuccessToUnavailable() {
+        responseStatus.set(HttpStatus.INTERNAL_SERVER_ERROR.value());
+        DocumentException failure = assertThrows(DocumentException.class, () -> gateway.authorize(COURSE_ID, COOKIE));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, failure.status());
+        responseStatus.set(HttpStatus.OK.value());
+        responseBody.set("{\"successful\":true,\"data\":{\"allowed\":true}}");
+        DocumentException malformed = assertThrows(DocumentException.class,
+                () -> gateway.authorize(COURSE_ID, COOKIE));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, malformed.status());
+    }
+
+    @Test
+    void rejectsExplicitDenialInSuccessfulResponse() {
+        responseBody.set("{\"successful\":true,\"data\":{\"allowed\":false}}");
+        DocumentException error = assertThrows(DocumentException.class, () -> gateway.authorize(COURSE_ID, COOKIE));
+        assertEquals(HttpStatus.FORBIDDEN, error.status());
+    }
+
+    @Test
+    void mapsTenantTimeoutToUnavailable() {
+        server.removeContext(AUTHORIZATION_PATH);
+        server.createContext(AUTHORIZATION_PATH, exchange -> {
+            try {
+                Thread.sleep(TIMEOUT_MILLIS);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+            exchange.close();
+        });
+        gateway = new HttpCourseAuthorizationGatewayImpl(
+                "http://localhost:" + server.getAddress().getPort() + AUTHORIZATION_PATH,
+                SERVICE_TOKEN, 50L, new ObjectMapper());
+        DocumentException error = assertThrows(DocumentException.class, () -> gateway.authorize(COURSE_ID, COOKIE));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, error.status());
+    }
 }
