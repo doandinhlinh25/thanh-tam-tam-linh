@@ -1,0 +1,36 @@
+✔ U-ST1 NONE --import[student]--> active: created (1.355764ms)
+✔ U-ST2 dropped --import[student]--> active: reactivated (0.166263ms)
+✔ U-ST3 active --import--> active: skipped, không ghi lại (0.142418ms)
+✔ U-ST4 completed --import--> completed: transition bị cấm (0.126048ms)
+✔ U-ST5 NONE --import[không phải student active]--> NONE: rejected (0.135635ms)
+✔ U-ST6 dropped --import[member đã bị thu hồi]--> dropped: không hồi sinh quyền (0.145113ms)
+✔ U-N1 (negative) dòng sai định dạng bị rejected, không throw (0.316225ms)
+✔ U-N2 (negative) trùng trong lô: lần đầu thắng, kể cả khác hoa/thường (0.214163ms)
+✔ U-INV dòng lỗi ở đầu/giữa/cuối không đổi outcome của dòng hợp lệ (invariant) (0.357033ms)
+✔ U-SUM summary đếm đúng từng outcome và chỉ dòng created/reactivated là cần ghi (0.21755ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 94.510189
+✔ IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ (2178.39985ms)
+✔ IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại (85.901563ms)
+✔ IT-03 (AC4, negative) lecturer/student không được import và không có gì được ghi (198.412697ms)
+✔ IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200 (68.751483ms)
+✔ IT-05 (AC4, failure path) môn học đã xóa mềm → 404, không ghi enrollment (25.562278ms)
+✔ IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn (44.880042ms)
+✔ IT-07 (contract) member bị thu hồi không được import hồi sinh quyền hỏi trợ giảng (30.035655ms)
+✔ IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng (81.459985ms)
+✔ IT-R1 (AC5, regression/characterization) behavior ghi danh đơn lẻ và ACL không đổi (167.318718ms)
+✔ IT-R2 (AC5, regression, thêm sau mutant M10) thêm lại member active → 409, import không đổi (56.089098ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3888.454715
