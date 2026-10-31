@@ -1,0 +1,51 @@
+== 1. Isolation (order/shared state) ==
+PASS | only IT-01
+PASS | only IT-02
+PASS | only IT-03
+PASS | only IT-04
+PASS | only IT-05
+PASS | only IT-06
+PASS | only IT-07
+PASS | only IT-08
+PASS | only IT-R1
+PASS | only IT-R2
+== 2. Concurrency: IT-08 x 20 ==
+PASS | IT-08 run 1
+PASS | IT-08 run 2
+PASS | IT-08 run 3
+PASS | IT-08 run 4
+PASS | IT-08 run 5
+PASS | IT-08 run 6
+PASS | IT-08 run 7
+PASS | IT-08 run 8
+PASS | IT-08 run 9
+PASS | IT-08 run 10
+PASS | IT-08 run 11
+PASS | IT-08 run 12
+PASS | IT-08 run 13
+PASS | IT-08 run 14
+PASS | IT-08 run 15
+PASS | IT-08 run 16
+PASS | IT-08 run 17
+PASS | IT-08 run 18
+PASS | IT-08 run 19
+PASS | IT-08 run 20
+== 3. Time zones ==
+PASS | TZ=Pacific/Kiritimati
+PASS | TZ=Etc/GMT+12
+== 4. Repeat full suite x 10 ==
+PASS | suite run 1
+PASS | suite run 2
+PASS | suite run 3
+PASS | suite run 4
+PASS | suite run 5
+PASS | suite run 6
+PASS | suite run 7
+PASS | suite run 8
+PASS | suite run 9
+PASS | suite run 10
+TOTAL FAILURES: 0
+
+real	2m27,985s
+user	2m39,780s
+sys	0m30,557s

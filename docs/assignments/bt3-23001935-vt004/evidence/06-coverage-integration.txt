@@ -1,0 +1,65 @@
+-----------------------------------|---------|----------|---------|---------|-----------------------
+File                               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s     
+-----------------------------------|---------|----------|---------|---------|-----------------------
+All files                          |   62.73 |    74.55 |   88.58 |   62.73 |                       
+ tenant-service                    |   89.13 |    69.23 |     100 |   89.13 |                       
+  index.ts                         |   89.13 |    69.23 |     100 |   89.13 | ...,71-72,77-78,89-91 
+ tenant-service/config             |     100 |    63.15 |     100 |     100 |                       
+  database.ts                      |     100 |    63.15 |     100 |     100 | 1-12                  
+ tenant-service/configs            |   85.71 |       75 |    90.9 |   85.71 |                       
+  health.config.ts                 |      80 |    77.77 |   83.33 |      80 | 1                     
+  service.config.ts                |     100 |    71.42 |     100 |     100 | 1-2                   
+ tenant-service/controllers        |   34.21 |       75 |     100 |   34.21 |                       
+  health.controller.ts             |   86.66 |    77.77 |     100 |   86.66 | 13-14                 
+  internal.controller.ts           |   21.31 |    73.33 |     100 |   21.31 | 10-35,38-51,54-61     
+ tenant-service/controllers/admin  |   40.15 |    78.48 |     100 |   40.15 |                       
+  course.controller.ts             |   57.48 |    69.23 |     100 |   57.48 | ...63,232-233,240-254 
+  tenant.controller.ts             |      25 |    89.47 |     100 |      25 | ...62,165-171,174-180 
+  tenantMembership.controller.ts   |   32.03 |    85.71 |     100 |   32.03 | ...74,180-193,196-206 
+ tenant-service/helpers            |   90.35 |    75.97 |   91.93 |   90.35 |                       
+  auth.helper.ts                   |   89.39 |       48 |   91.66 |   89.39 | 27-28,39-40,64-66     
+  enrollment-import.helper.ts      |     100 |    94.11 |     100 |     100 | 1,59                  
+  error.helper.ts                  |   83.33 |    79.16 |     100 |   83.33 | 21-23,28-30           
+  mail.helper.ts                   |   36.36 |       60 |   71.42 |   36.36 | 5-11                  
+  tenant.helper.ts                 |      90 |       76 |    87.5 |      90 | 15-16,31-32           
+  token.helper.ts                  |     100 |    84.61 |    87.5 |     100 | 1,10                  
+  validation.helper.ts             |   90.32 |    78.26 |     100 |   90.32 | 22-24                 
+ tenant-service/middlewares        |   57.69 |    72.34 |     100 |   57.69 |                       
+  query.middleware.ts              |   89.65 |    64.28 |     100 |   89.65 | 25-27                 
+  security.middleware.ts           |   48.51 |    75.75 |     100 |   48.51 | ...40-42,50-83,89-100 
+ tenant-service/middlewares/admin  |   89.65 |    77.27 |     100 |   89.65 |                       
+  auth.middleware.ts               |   89.65 |    77.27 |     100 |   89.65 | 13-14,28-31           
+ tenant-service/middlewares/tenant |   93.33 |     61.9 |     100 |   93.33 |                       
+  tenant.middleware.ts             |   93.33 |     61.9 |     100 |   93.33 | 28-29                 
+ tenant-service/models             |     100 |     73.4 |   89.79 |     100 |                       
+  course-enrollment.model.ts       |     100 |       75 |     100 |     100 | 1                     
+  course.model.ts                  |     100 |       75 |     100 |     100 | 1                     
+  lecturer-assignment.model.ts     |     100 |    72.72 |   83.33 |     100 | 1                     
+  quota-usage.model.ts             |     100 |    66.66 |   57.14 |     100 | 1-23                  
+  tenant-audit.model.ts            |     100 |       75 |     100 |     100 | 1                     
+  tenant-invitation.model.ts       |     100 |    72.72 |   83.33 |     100 | 1                     
+  tenant-membership.model.ts       |     100 |       75 |     100 |     100 | 1                     
+  tenant.model.ts                  |     100 |       75 |     100 |     100 | 1                     
+ tenant-service/routes             |     100 |    73.68 |     100 |     100 |                       
+  health.route.ts                  |     100 |    77.77 |     100 |     100 | 1-11                  
+  internal.route.ts                |     100 |       70 |     100 |     100 | 1                     
+ tenant-service/routes/admin       |     100 |    86.04 |     100 |     100 |                       
+  course.route.ts                  |     100 |     90.9 |     100 |     100 | 1                     
+  index.route.ts                   |     100 |       70 |     100 |     100 | 1                     
+  membership.route.ts              |     100 |     90.9 |     100 |     100 | 1                     
+  tenant.route.ts                  |     100 |     90.9 |     100 |     100 | 1                     
+ tenant-service/services           |   35.18 |    72.81 |   55.71 |   35.18 |                       
+  course.service.ts                |   62.59 |    69.38 |      70 |   62.59 | ...33,236-248,379-385 
+  health.service.ts                |   83.33 |    66.66 |   57.14 |   83.33 | 11-12                 
+  membership.service.ts            |   20.24 |    74.07 |   55.55 |   20.24 | ...24,328-386,389-410 
+  quota.service.ts                 |   23.52 |    71.42 |    62.5 |   23.52 | 9-34                  
+  tenant.service.ts                |   17.37 |    85.71 |   35.29 |   17.37 | ...00,203-221,224-259 
+ tenant-service/validates          |      95 |    71.42 |     100 |      95 |                       
+  internal.validate.ts             |      95 |    71.42 |     100 |      95 | 20                    
+ tenant-service/validates/admin    |   96.87 |    73.91 |     100 |   96.87 |                       
+  course.validate.ts               |   96.29 |       75 |     100 |   96.29 | 27                    
+  membership.validate.ts           |   95.23 |    73.33 |     100 |   95.23 | 21                    
+  tenant.validate.ts               |   97.91 |    73.33 |     100 |   97.91 | 48                    
+-----------------------------------|---------|----------|---------|---------|-----------------------
+CourseService.importEnrollments (lines 293-356): line 64/64 = 100.0%; branches 10/10
+uncovered lines in range: []

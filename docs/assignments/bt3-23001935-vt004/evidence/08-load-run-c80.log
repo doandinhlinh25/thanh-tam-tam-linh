@@ -1,0 +1,18 @@
+S1-80-independent-tenants round 1 (warm-up) wall 692ms
+S1-80-independent-tenants round 2  wall 407ms
+S1-80-independent-tenants round 3  wall 393ms
+S1-80-independent-tenants round 4  wall 351ms
+S1-80-independent-tenants round 5  wall 348ms
+S1-80-independent-tenants round 6  wall 354ms
+S2-80-courses-same-tenant round 1 (warm-up) wall 4464ms
+S2-80-courses-same-tenant round 2  wall 4137ms
+S2-80-courses-same-tenant round 3  wall 4035ms
+S2-80-courses-same-tenant round 4  wall 4041ms
+S2-80-courses-same-tenant round 5  wall 4016ms
+S2-80-courses-same-tenant round 6  wall 3975ms
+┌─────────┬─────────────────────────────┬──────────────────┬────────┬───────┬────────┬────────┬────────────┬───────────────┬─────────────┐
+│ (index) │ scenario                    │ measuredRequests │ p50Ms  │ p95Ms │ p99Ms  │ maxMs  │ errorCount │ lostValidRows │ meetsTarget │
+├─────────┼─────────────────────────────┼──────────────────┼────────┼───────┼────────┼────────┼────────────┼───────────────┼─────────────┤
+│ 0       │ 'S1-80-independent-tenants' │ 400              │ 338    │ 394.6 │ 398.5  │ 399.5  │ 0          │ 0             │ true        │
+│ 1       │ 'S2-80-courses-same-tenant' │ 400              │ 3016.5 │ 4015  │ 4105.4 │ 4132.9 │ 0          │ 0             │ false       │
+└─────────┴─────────────────────────────┴──────────────────┴────────┴───────┴────────┴────────┴────────────┴───────────────┴─────────────┘

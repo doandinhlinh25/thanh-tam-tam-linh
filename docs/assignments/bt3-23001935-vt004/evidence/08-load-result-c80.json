@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-10-31T05:12:18.083Z",
+  "environment": {
+    "node": "v24.14.0",
+    "platform": "linux 6.8.0-138-generic",
+    "cpus": "16x AMD Ryzen 7 5800HS with Radeon Graphics",
+    "memoryGB": 22.9,
+    "mongo": "mongodb-memory-server 7.0.24, replica set 1 node, wiredTiger cache 0.25GB",
+    "note": "Load generator, MongoDB, Auth và Tenant chạy trên cùng một máy"
+  },
+  "rounds": 5,
+  "warmupRounds": 1,
+  "results": [
+    {
+      "scenario": "S1-80-independent-tenants",
+      "concurrency": 80,
+      "measuredRequests": 400,
+      "rowsPerRequest": 25,
+      "p50Ms": 338,
+      "p95Ms": 394.6,
+      "p99Ms": 398.5,
+      "maxMs": 399.5,
+      "meanMs": 332.8,
+      "statusCounts": {
+        "200": 480
+      },
+      "errors": [],
+      "errorCount": 0,
+      "validRowsSent": 9600,
+      "activeEnrollmentsStored": 9600,
+      "lostValidRows": 0,
+      "p95TargetMs": 1500,
+      "meetsTarget": true
+    },
+    {
+      "scenario": "S2-80-courses-same-tenant",
+      "concurrency": 80,
+      "measuredRequests": 400,
+      "rowsPerRequest": 25,
+      "p50Ms": 3016.5,
+      "p95Ms": 4015,
+      "p99Ms": 4105.4,
+      "maxMs": 4132.9,
+      "meanMs": 2678.6,
+      "statusCounts": {
+        "200": 480
+      },
+      "errors": [],
+      "errorCount": 0,
+      "validRowsSent": 9600,
+      "activeEnrollmentsStored": 9600,
+      "lostValidRows": 0,
+      "p95TargetMs": 1500,
+      "meetsTarget": false
+    }
+  ]
+}
