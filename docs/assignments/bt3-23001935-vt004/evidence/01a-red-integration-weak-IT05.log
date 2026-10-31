@@ -1,0 +1,149 @@
+
+> test:import:integration
+> tsx --test --test-concurrency=1 test/enrollment-import.integration.ts
+
+✖ IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ (2016.466194ms)
+✖ IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại (25.737656ms)
+✖ IT-03 (AC4, negative) lecturer/student không được import và không có gì được ghi (105.4659ms)
+✖ IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200 (17.579128ms)
+✔ IT-05 (AC4, failure path) môn học đã xóa mềm → 404, không ghi enrollment (19.166254ms)
+✖ IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn (21.807335ms)
+✖ IT-07 (contract) member bị thu hồi không được import hồi sinh quyền hỏi trợ giảng (21.393533ms)
+✖ IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng (26.373982ms)
+✔ IT-R1 (AC5, regression/characterization) behavior ghi danh đơn lẻ và ACL không đổi (178.275827ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 2
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3945.447215
+
+✖ failing tests:
+
+test at test/enrollment-import.integration.ts:47:1
+✖ IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ (2016.466194ms)
+  AssertionError [ERR_ASSERTION]: {"code":"error","message":"Không tìm thấy đường dẫn!"}
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:58:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/enrollment-import.integration.ts:86:1
+✖ IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại (25.737656ms)
+  AssertionError [ERR_ASSERTION]: {"code":"error","message":"Không tìm thấy đường dẫn!"}
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:98:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/enrollment-import.integration.ts:142:1
+✖ IT-03 (AC4, negative) lecturer/student không được import và không có gì được ghi (105.4659ms)
+  AssertionError [ERR_ASSERTION]: {"code":"error","message":"Không tìm thấy đường dẫn!"}
+  
+  404 !== 403
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:155:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/enrollment-import.integration.ts:160:1
+✖ IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200 (17.579128ms)
+  AssertionError [ERR_ASSERTION]: {}
+  
+  404 !== 400
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:166:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/enrollment-import.integration.ts:190:1
+✖ IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn (21.807335ms)
+  AssertionError [ERR_ASSERTION]: {"code":"error","message":"Không tìm thấy đường dẫn!"}
+  
+  404 !== 500
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:217:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 500,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/enrollment-import.integration.ts:244:1
+✖ IT-07 (contract) member bị thu hồi không được import hồi sinh quyền hỏi trợ giảng (21.393533ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:262:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/enrollment-import.integration.ts:267:1
+✖ IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng (26.373982ms)
+  AssertionError [ERR_ASSERTION]: {"code":"error","message":"Không tìm thấy đường dẫn!"}
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:280:40)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

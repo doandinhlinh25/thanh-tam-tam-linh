@@ -8,7 +8,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run build && node --test test/*.test.js && npm run test --workspaces --if-present && npm run test:platform",
+    "test": "npm run build && node --test test/*.test.js && npm run test --workspaces --if-present && npm run test:platform && npm run test:import",
     "test:platform": "tsx --test --test-concurrency=1 test/platform.integration.ts",
     "dev": "npm run dev --prefix apps/web",
     "sandbox:init": "node scripts/sandbox.mjs init",
@@ -19,7 +19,11 @@
     "sandbox:logs": "node scripts/sandbox.mjs logs",
     "sandbox:smoke": "node scripts/sandbox.mjs smoke",
     "sandbox:fixtures": "node scripts/sandbox-fixtures.mjs",
-    "sandbox:upload-e2e": "node scripts/sandbox-upload-e2e.mjs"
+    "sandbox:upload-e2e": "node scripts/sandbox-upload-e2e.mjs",
+    "test:import:unit": "tsx --test test/unit/enrollment-import.test.ts",
+    "test:import:integration": "tsx --test --test-concurrency=1 test/enrollment-import.integration.ts",
+    "test:import": "npm run test:import:unit && npm run test:import:integration",
+    "load:import": "tsx test/load/enrollment-import.load.ts"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

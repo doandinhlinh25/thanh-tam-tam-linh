@@ -1,0 +1,32 @@
+
+> build
+> npm run build --workspaces --if-present
+
+
+> @saas/common@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/http@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/auth-service@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/billing-service@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/identity-service@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/notification-service@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> @saas/tenant-service@1.0.0 build
+> tsc -p tsconfig.json
+

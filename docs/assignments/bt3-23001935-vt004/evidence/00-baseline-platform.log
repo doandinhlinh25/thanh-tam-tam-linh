@@ -1,0 +1,27 @@
+
+> test:platform
+> tsx --test --test-concurrency=1 test/platform.integration.ts
+
+✔ Super Admin: env login, middleware permissions, no AccountAdmin document and normal login fallback (2632.37785ms)
+✔ JWT: duy-tam login/logout, bcrypt, expiry, signature and privilege checks (176.170056ms)
+✔ Auth: cookie/JWT, generic login failure, Origin and password-hash serialization (218.227042ms)
+✔ Tenant: create owner atomically, reject fake identity, invalid input and absent CSRF (55.998431ms)
+✔ Tenant: member list, owner settings, student/course ACL and Document authorization (219.782163ms)
+✔ Quota: concurrent requests respect limit; retries are idempotent and bound to user/course (151.325856ms)
+✔ Membership: protect final owner; revoke immediately and clear enrollment before restore (66.716997ms)
+✔ Invitations: activation, exact recipient, one-use token, resend invalidates previous token (831.011786ms)
+✔ Auth regression: profile search, active invitations and forgot do not revoke JWT (289.567311ms)
+✔ Tenant regression: full member quota blocks invitations and multipart fields are bounded (39.966754ms)
+✔ Auth JWT: logout clears cookie; expiry/reset invalidate JWT; malformed JSON returns 400 (340.620684ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5924.220938
+
+real	0m6,090s
+user	0m6,680s
+sys	0m1,038s
