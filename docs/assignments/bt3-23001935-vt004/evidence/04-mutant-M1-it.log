@@ -1,0 +1,188 @@
+
+> test:import:integration
+> tsx --test --test-concurrency=1 test/enrollment-import.integration.ts
+
+✖ IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ (2237.131433ms)
+✖ IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại (35.162913ms)
+✔ IT-03 (AC4, negative) lecturer/student không được import và không có gì được ghi (218.657453ms)
+✖ IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200 (82.215137ms)
+✔ IT-05 (AC4, failure path) môn học đã xóa mềm → 404, không ghi enrollment (29.394219ms)
+✖ IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn (29.930923ms)
+✖ IT-07 (contract) member bị thu hồi không được import hồi sinh quyền hỏi trợ giảng (30.156625ms)
+✖ IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng (73.52262ms)
+✔ IT-R1 (AC5, regression/characterization) behavior ghi danh đơn lẻ và ACL không đổi (176.650003ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 3
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3904.271533
+
+✖ failing tests:
+
+test at test/enrollment-import.integration.ts:49:1
+✖ IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ (2237.131433ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      [
+        1,
+        'rejected',
+        'invalid_user_id'
+  ...
+        2,
+  +     'rejected',
+  +     'not_active_student'
+  -     'created',
+  -     null
+      ],
+      [
+        3,
+  +     'created',
+  +     null
+  -     'rejected',
+  -     'not_active_student'
+      ],
+      [
+        4,
+  +     'created',
+  +     null
+  -     'rejected',
+  -     'not_active_student'
+      ],
+      [
+        5,
+  +     'rejected',
+  +     'not_active_student'
+  -     'created',
+  -     null
+      ],
+      [
+        6,
+        'rejected',
+        'duplicate_in_batch'
+  ...
+        8,
+  +     'rejected',
+  +     'not_active_student'
+  -     'created',
+  -     null
+      ]
+    ]
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:61:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 1, 'rejected', 'invalid_user_id' ], [ 2, 'rejected', 'not_active_student' ], [ 3, 'created', null ], [ 4, 'created', null ], [ 5, 'rejected', 'not_active_student' ], [ 6, 'rejected', 'duplicate_in_batch' ], [ 7, 'rejected', 'invalid_user_id' ], [ 8, 'rejected', 'not_active_student' ] ],
+    expected: [ [ 1, 'rejected', 'invalid_user_id' ], [ 2, 'created', null ], [ 3, 'rejected', 'not_active_student' ], [ 4, 'rejected', 'not_active_student' ], [ 5, 'created', null ], [ 6, 'rejected', 'duplicate_in_batch' ], [ 7, 'rejected', 'invalid_user_id' ], [ 8, 'created', null ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/enrollment-import.integration.ts:88:1
+✖ IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại (35.162913ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  -   'created',
+  -   'reactivated',
+  -   'skipped',
+      'rejected',
+  +   'rejected',
+  +   'rejected',
+  +   'rejected'
+    ]
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:115:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'rejected', 'rejected', 'rejected', 'rejected' ],
+    expected: [ 'created', 'reactivated', 'skipped', 'rejected' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/enrollment-import.integration.ts:177:1
+✖ IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200 (82.215137ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:188:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/enrollment-import.integration.ts:209:1
+✖ IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn (29.930923ms)
+  AssertionError [ERR_ASSERTION]: {"code":"success","message":"Import ghi danh hoàn tất!","results":[{"row":1,"userId":"6ae5760c0b941764dc51d376","outcome":"rejected","reason":"not_active_student"},{"row":2,"userId":"6ae5760c0b941764dc51d377","outcome":"rejected","reason":"not_active_student"},{"row":3,"userId":"6ae5760c0b941764dc51d378","outcome":"rejected","reason":"not_active_student"}],"summary":{"total":3,"created":0,"reactivated":0,"skipped":0,"rejected":3}}
+  
+  200 !== 500
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:236:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 500,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/enrollment-import.integration.ts:263:1
+✖ IT-07 (contract) member bị thu hồi không được import hồi sinh quyền hỏi trợ giảng (30.156625ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'not_active_student'
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:282:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'not_active_student',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/enrollment-import.integration.ts:286:1
+✖ IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng (73.52262ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 30
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/enrollment-import.integration.ts:304:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1125:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 30,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

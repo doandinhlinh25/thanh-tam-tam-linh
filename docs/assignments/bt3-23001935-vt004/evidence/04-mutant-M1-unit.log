@@ -1,0 +1,254 @@
+
+> test:import:unit
+> tsx --test test/unit/enrollment-import.test.ts
+
+✖ U-ST1 NONE --import[student]--> active: created (2.246865ms)
+✖ U-ST2 dropped --import[student]--> active: reactivated (0.349484ms)
+✖ U-ST3 active --import--> active: skipped, không ghi lại (0.343603ms)
+✖ U-ST4 completed --import--> completed: transition bị cấm (0.250439ms)
+✖ U-ST5 NONE --import[không phải student active]--> NONE: rejected (0.275996ms)
+✖ U-ST6 dropped --import[member đã bị thu hồi]--> dropped: không hồi sinh quyền (0.224911ms)
+✔ U-N1 (negative) dòng sai định dạng bị rejected, không throw (0.35775ms)
+✖ U-N2 (negative) trùng trong lô: lần đầu thắng, kể cả khác hoa/thường (0.329316ms)
+✔ U-INV dòng lỗi ở đầu/giữa/cuối không đổi outcome của dòng hợp lệ (invariant) (0.39557ms)
+✖ U-SUM summary đếm đúng từng outcome và chỉ dòng created/reactivated là cần ghi (0.958413ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 2
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 148.858107
+
+✖ failing tests:
+
+test at test/unit/enrollment-import.test.ts:35:1
+✖ U-ST1 NONE --import[student]--> active: created (2.246865ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   outcome: 'rejected',
+  +   reason: 'not_active_student',
+  -   outcome: 'created',
+      row: 1,
+      userId: '0000000000000000000000a1'
+    }
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/unit/enrollment-import.test.ts:36:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.start (node:internal/test_runner/test:1015:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { row: 1, userId: '0000000000000000000000a1', outcome: 'rejected', reason: 'not_active_student' },
+    expected: { row: 1, userId: '0000000000000000000000a1', outcome: 'created' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/unit/enrollment-import.test.ts:39:1
+✖ U-ST2 dropped --import[student]--> active: reactivated (0.349484ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   outcome: 'rejected',
+  +   reason: 'not_active_student',
+  -   outcome: 'reactivated',
+      row: 1,
+      userId: '0000000000000000000000a2'
+    }
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/unit/enrollment-import.test.ts:40:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { row: 1, userId: '0000000000000000000000a2', outcome: 'rejected', reason: 'not_active_student' },
+    expected: { row: 1, userId: '0000000000000000000000a2', outcome: 'reactivated' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/unit/enrollment-import.test.ts:47:1
+✖ U-ST3 active --import--> active: skipped, không ghi lại (0.343603ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   outcome: 'rejected',
+  +   reason: 'not_active_student',
+  -   outcome: 'skipped',
+  -   reason: 'already_active',
+      row: 1,
+      userId: '0000000000000000000000a3'
+    }
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/unit/enrollment-import.test.ts:48:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { row: 1, userId: '0000000000000000000000a3', outcome: 'rejected', reason: 'not_active_student' },
+    expected: { row: 1, userId: '0000000000000000000000a3', outcome: 'skipped', reason: 'already_active' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/unit/enrollment-import.test.ts:56:1
+✖ U-ST4 completed --import--> completed: transition bị cấm (0.250439ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      outcome: 'rejected',
+  +   reason: 'not_active_student',
+  -   reason: 'enrollment_completed',
+      row: 1,
+      userId: '0000000000000000000000a4'
+    }
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/unit/enrollment-import.test.ts:57:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { row: 1, userId: '0000000000000000000000a4', outcome: 'rejected', reason: 'not_active_student' },
+    expected: { row: 1, userId: '0000000000000000000000a4', outcome: 'rejected', reason: 'enrollment_completed' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/unit/enrollment-import.test.ts:65:1
+✖ U-ST5 NONE --import[không phải student active]--> NONE: rejected (0.275996ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   outcome: 'created',
+  -   outcome: 'rejected',
+  -   reason: 'not_active_student',
+      row: 1,
+      userId: '0000000000000000000000b1'
+    }
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/unit/enrollment-import.test.ts:66:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { row: 1, userId: '0000000000000000000000b1', outcome: 'created' },
+    expected: { row: 1, userId: '0000000000000000000000b1', outcome: 'rejected', reason: 'not_active_student' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/unit/enrollment-import.test.ts:74:1
+✖ U-ST6 dropped --import[member đã bị thu hồi]--> dropped: không hồi sinh quyền (0.224911ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   outcome: 'reactivated',
+  -   outcome: 'rejected',
+  -   reason: 'not_active_student',
+      row: 1,
+      userId: '0000000000000000000000b2'
+    }
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/unit/enrollment-import.test.ts:75:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { row: 1, userId: '0000000000000000000000b2', outcome: 'reactivated' },
+    expected: { row: 1, userId: '0000000000000000000000b2', outcome: 'rejected', reason: 'not_active_student' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/unit/enrollment-import.test.ts:109:1
+✖ U-N2 (negative) trùng trong lô: lần đầu thắng, kể cả khác hoa/thường (0.329316ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      [
+  +     'rejected',
+  +     'not_active_student'
+  -     'created',
+  -     undefined
+      ],
+      [
+        'rejected',
+        'duplicate_in_batch'
+      ],
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/unit/enrollment-import.test.ts:112:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'rejected', 'not_active_student' ], [ 'rejected', 'duplicate_in_batch' ], [ 'rejected', 'duplicate_in_batch' ] ],
+    expected: [ [ 'created', undefined ], [ 'rejected', 'duplicate_in_batch' ], [ 'rejected', 'duplicate_in_batch' ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at test/unit/enrollment-import.test.ts:150:1
+✖ U-SUM summary đếm đúng từng outcome và chỉ dòng created/reactivated là cần ghi (0.958413ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      created: 1,
+  +   reactivated: 0,
+  +   rejected: 6,
+  +   skipped: 0,
+  -   reactivated: 1,
+  -   rejected: 4,
+  -   skipped: 1,
+      total: 7
+    }
+  
+      at TestContext.<anonymous> (/home/thanh/Documents/1.Projects/thanh-tam-tam-linh-bt3/test/unit/enrollment-import.test.ts:163:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { total: 7, created: 1, reactivated: 0, skipped: 0, rejected: 6 },
+    expected: { total: 7, created: 1, reactivated: 1, skipped: 1, rejected: 4 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

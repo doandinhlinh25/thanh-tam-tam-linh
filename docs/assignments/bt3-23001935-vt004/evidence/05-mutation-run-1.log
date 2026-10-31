@@ -1,0 +1,9 @@
+M1 | KILLED | Chỉ student đang active mới được ghi danh (planner) | unit:8 import:6
+M2 | KILLED | Enrollment active thì skipped (planner) | unit:6 import:5
+M3 | KILLED | Enrollment completed là trạng thái cuối (planner) | unit:5 import:5
+M4 | KILLED | Trùng trong lô: lần đầu thắng (planner) | unit:8 import:6
+M5 | KILLED | Chỉ ghi khi có dòng hợp lệ (service) | import:4
+M6 | KILLED | Course xóa mềm không được import (service) | import:7
+M7 | KILLED | [cũ] Ghi danh đơn lẻ trùng → 409 (enrollStudent) | import:1 platform:2
+M8 | KILLED | [cũ] Course không active thì student/lecturer không truy cập (canAccessCourse) | platform:2
+M9 | KILLED | [cũ] Student không được upload/xóa tài liệu (canAccessCourse) | platform:2

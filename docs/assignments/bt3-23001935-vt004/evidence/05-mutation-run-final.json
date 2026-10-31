@@ -1,0 +1,220 @@
+[
+  {
+    "id": "M1",
+    "rule": "Chỉ student đang active mới được ghi danh (planner)",
+    "status": "KILLED",
+    "killedBy": [
+      {
+        "suite": "unit",
+        "tests": [
+          "U-ST1 NONE --import[student]--> active: created",
+          "U-ST2 dropped --import[student]--> active: reactivated",
+          "U-ST3 active --import--> active: skipped, không ghi lại",
+          "U-ST4 completed --import--> completed: transition bị cấm",
+          "U-ST5 NONE --import[không phải student active]--> NONE: rejected",
+          "U-ST6 dropped --import[member đã bị thu hồi]--> dropped: không hồi sinh quyền",
+          "U-N2 (negative) trùng trong lô: lần đầu thắng, kể cả khác hoa/thường",
+          "U-SUM summary đếm đúng từng outcome và chỉ dòng created/reactivated là cần ghi"
+        ]
+      },
+      {
+        "suite": "import",
+        "tests": [
+          "IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ",
+          "IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại",
+          "IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200",
+          "IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn",
+          "IT-07 (contract) member bị thu hồi không được import hồi sinh quyền hỏi trợ giảng",
+          "IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng",
+          "IT-R2 (AC5, regression, thêm sau mutant M10) thêm lại member active → 409, import không đổi"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "M2",
+    "rule": "Enrollment active thì skipped (planner)",
+    "status": "KILLED",
+    "killedBy": [
+      {
+        "suite": "unit",
+        "tests": [
+          "U-ST1 NONE --import[student]--> active: created",
+          "U-ST2 dropped --import[student]--> active: reactivated",
+          "U-ST3 active --import--> active: skipped, không ghi lại",
+          "U-ST4 completed --import--> completed: transition bị cấm",
+          "U-N2 (negative) trùng trong lô: lần đầu thắng, kể cả khác hoa/thường",
+          "U-SUM summary đếm đúng từng outcome và chỉ dòng created/reactivated là cần ghi"
+        ]
+      },
+      {
+        "suite": "import",
+        "tests": [
+          "IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ",
+          "IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại",
+          "IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200",
+          "IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn",
+          "IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng",
+          "IT-R2 (AC5, regression, thêm sau mutant M10) thêm lại member active → 409, import không đổi"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "M3",
+    "rule": "Enrollment completed là trạng thái cuối (planner)",
+    "status": "KILLED",
+    "killedBy": [
+      {
+        "suite": "unit",
+        "tests": [
+          "U-ST1 NONE --import[student]--> active: created",
+          "U-ST2 dropped --import[student]--> active: reactivated",
+          "U-ST4 completed --import--> completed: transition bị cấm",
+          "U-N2 (negative) trùng trong lô: lần đầu thắng, kể cả khác hoa/thường",
+          "U-SUM summary đếm đúng từng outcome và chỉ dòng created/reactivated là cần ghi"
+        ]
+      },
+      {
+        "suite": "import",
+        "tests": [
+          "IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ",
+          "IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại",
+          "IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200",
+          "IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn",
+          "IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng",
+          "IT-R2 (AC5, regression, thêm sau mutant M10) thêm lại member active → 409, import không đổi"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "M4",
+    "rule": "Trùng trong lô: lần đầu thắng (planner)",
+    "status": "KILLED",
+    "killedBy": [
+      {
+        "suite": "unit",
+        "tests": [
+          "U-ST1 NONE --import[student]--> active: created",
+          "U-ST2 dropped --import[student]--> active: reactivated",
+          "U-ST3 active --import--> active: skipped, không ghi lại",
+          "U-ST4 completed --import--> completed: transition bị cấm",
+          "U-ST5 NONE --import[không phải student active]--> NONE: rejected",
+          "U-ST6 dropped --import[member đã bị thu hồi]--> dropped: không hồi sinh quyền",
+          "U-N2 (negative) trùng trong lô: lần đầu thắng, kể cả khác hoa/thường",
+          "U-SUM summary đếm đúng từng outcome và chỉ dòng created/reactivated là cần ghi"
+        ]
+      },
+      {
+        "suite": "import",
+        "tests": [
+          "IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ",
+          "IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại",
+          "IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200",
+          "IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn",
+          "IT-07 (contract) member bị thu hồi không được import hồi sinh quyền hỏi trợ giảng",
+          "IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng",
+          "IT-R2 (AC5, regression, thêm sau mutant M10) thêm lại member active → 409, import không đổi"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "M5",
+    "rule": "Chỉ ghi khi có dòng hợp lệ (service)",
+    "status": "KILLED",
+    "killedBy": [
+      {
+        "suite": "import",
+        "tests": [
+          "IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ",
+          "IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại",
+          "IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn",
+          "IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "M6",
+    "rule": "Course xóa mềm không được import (service)",
+    "status": "KILLED",
+    "killedBy": [
+      {
+        "suite": "import",
+        "tests": [
+          "IT-01 (AC1, AC2) lô hỗn hợp: dòng lỗi không làm mất dòng hợp lệ",
+          "IT-02 (AC3) chuỗi chuyển trạng thái trên DB thật, idempotent khi gửi lại",
+          "IT-04 (AC4, negative + boundary) rows rỗng/không phải mảng/501 → 400; 500 → 200",
+          "IT-05 (AC4, failure path) môn học đã xóa mềm → 404, không ghi enrollment",
+          "IT-06 (NFR2, failure path) lỗi DB giữa lô → rollback cả lô, dữ liệu cũ nguyên vẹn",
+          "IT-07 (contract) member bị thu hồi không được import hồi sinh quyền hỏi trợ giảng",
+          "IT-08 (NFR2, concurrency) 5 lô chồng lấn chạy đồng thời không tạo enrollment trùng",
+          "IT-R2 (AC5, regression, thêm sau mutant M10) thêm lại member active → 409, import không đổi"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "M7",
+    "rule": "[cũ] Ghi danh đơn lẻ trùng → 409 (enrollStudent)",
+    "status": "KILLED",
+    "killedBy": [
+      {
+        "suite": "import",
+        "tests": [
+          "IT-R1 (AC5, regression/characterization) behavior ghi danh đơn lẻ và ACL không đổi"
+        ]
+      },
+      {
+        "suite": "platform",
+        "tests": [
+          "Tenant: member list, owner settings, student/course ACL and Document authorization",
+          "Quota: concurrent requests respect limit; retries are idempotent and bound to user/course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "M8",
+    "rule": "[cũ] Course không active thì student/lecturer không truy cập (canAccessCourse)",
+    "status": "KILLED",
+    "killedBy": [
+      {
+        "suite": "platform",
+        "tests": [
+          "Tenant: member list, owner settings, student/course ACL and Document authorization",
+          "Quota: concurrent requests respect limit; retries are idempotent and bound to user/course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "M9",
+    "rule": "[cũ] Student không được upload/xóa tài liệu (canAccessCourse)",
+    "status": "KILLED",
+    "killedBy": [
+      {
+        "suite": "platform",
+        "tests": [
+          "Tenant: member list, owner settings, student/course ACL and Document authorization",
+          "Quota: concurrent requests respect limit; retries are idempotent and bound to user/course"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "M10",
+    "rule": "[cũ] Thêm lại member đang active → 409 (addMember, nguồn của guard import)",
+    "status": "KILLED",
+    "killedBy": [
+      {
+        "suite": "import",
+        "tests": [
+          "IT-R2 (AC5, regression, thêm sau mutant M10) thêm lại member active → 409, import không đổi"
+        ]
+      }
+    ]
+  }
+]

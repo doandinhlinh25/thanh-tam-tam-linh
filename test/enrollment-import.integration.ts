@@ -338,3 +338,33 @@ test("IT-R1 (AC5, regression/characterization) behavior ghi danh đơn lẻ và 
     "giới hạn JSON toàn cục 32 kB không đổi"
   );
 });
+
+test("IT-R2 (AC5, regression, thêm sau mutant M10) thêm lại member active → 409, import không đổi", async () => {
+  const { tenantId, courseId } = await setup(0);
+  const studentId = await harness.createAccount("student");
+  const add = (role: string) =>
+    harness.request(
+      "POST",
+      "/admin/tenant/" + tenantId + "/members/add",
+      { userId: String(studentId), role },
+      owner
+    );
+  assert.equal((await add("student")).status, 200);
+  const again = await add("lecturer");
+  assert.equal(again.status, 409, "member active không được 'add' lại để đổi vai trò ngầm");
+  const members = await harness.tenantDb
+    .collection("tenant_memberships")
+    .find({ tenantId, userId: studentId })
+    .toArray();
+  assert.deepEqual(
+    members.map((member) => member.role),
+    ["student"]
+  );
+  const result = await harness.request(
+    "POST",
+    importPath(tenantId, courseId),
+    { rows: rowsOf(studentId) },
+    owner
+  );
+  assert.equal(result.body.results[0].outcome, "created");
+});
