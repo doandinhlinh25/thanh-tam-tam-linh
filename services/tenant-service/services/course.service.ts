@@ -8,53 +8,79 @@ import Tenant from "../models/tenant.model";
 import { ServiceError } from "../helpers/error.helper";
 import { withTenant, escapeRegex } from "../helpers/tenant.helper";
 
+const COURSE_READ_ACTION = "course:read";
+const DOCUMENT_UPLOAD_ACTION = "document:upload";
+const CHAT_ASK_ACTION = "chat:ask";
+const ACTIVE_COURSE_STATUS = "active";
+const ACTIVE_TENANT_STATUS = "active";
+const ACTIVE_MEMBERSHIP_STATUS = "active";
+const ACTIVE_ENROLLMENT_STATUS = "active";
+const COURSE_CONTENT_ACTIONS = new Set([DOCUMENT_UPLOAD_ACTION, CHAT_ASK_ACTION]);
+const TENANT_MANAGER_ROLES = new Set(["tenant_owner", "tenant_admin"]);
+const STUDENT_LIST_ROLES = new Set(["tenant_owner", "tenant_admin", "lecturer"]);
+const STUDENT_LIST_FORBIDDEN_STATUS = 403;
+const STUDENT_LIST_FORBIDDEN_MESSAGE = "Không đủ quyền xem danh sách sinh viên!";
+
+/** Manages courses and evaluates tenant-scoped course permissions. */
 export class CourseService {
-  /** Lecturer phải được phân công; student phải có enrollment đang hoạt động. */
+  /**
+   * Checks a verified user's current tenant membership and course access.
+   * Upload and chat require an active course even for tenant managers.
+   *
+   * @param tenantId Tenant that owns the course.
+   * @param courseId Course whose permission is checked.
+   * @param userId Verified Auth user ID.
+   * @param action Existing course action to authorize.
+   * @param session Optional MongoDB transaction session.
+   * @returns Whether the user has the requested permission.
+   * @throws Database errors when the authorization lookup fails.
+   */
   static async canAccessCourse(
     tenantId: string,
     courseId: string,
     userId: string,
-    action = "course:read",
+    action = COURSE_READ_ACTION,
     session?: mongoose.ClientSession
   ): Promise<boolean> {
     if (
       ![
-        "course:read",
+        COURSE_READ_ACTION,
         "document:read",
-        "document:upload",
+        DOCUMENT_UPLOAD_ACTION,
         "document:delete",
-        "chat:ask",
+        CHAT_ASK_ACTION,
         "feedback:write"
       ].includes(action)
     )
       return false;
     const tenant = await Tenant.findOne({
       _id: tenantId,
-      status: "active",
+      status: ACTIVE_TENANT_STATUS,
       deleted: false
     }).session(session || null);
     const member = await TenantMembership.findOne({
       tenantId,
       userId,
-      status: "active",
+      status: ACTIVE_MEMBERSHIP_STATUS,
       deleted: false
     }).session(session || null);
     const course = await Course.findOne({ _id: courseId, tenantId, deleted: false }).session(
       session || null
     );
     if (!tenant || !member || !course) return false;
-    if (["tenant_owner", "tenant_admin"].includes(member.role)) return true;
-    if (course.status !== "active") return false;
+    if (course.status !== ACTIVE_COURSE_STATUS && COURSE_CONTENT_ACTIONS.has(action)) return false;
+    if (TENANT_MANAGER_ROLES.has(member.role)) return true;
+    if (course.status !== ACTIVE_COURSE_STATUS) return false;
     if (member.role === "lecturer")
       return !!(await LecturerAssignment.exists({ tenantId, courseId, userId }).session(
         session || null
       ));
-    if (["document:upload", "document:delete"].includes(action)) return false;
+    if ([DOCUMENT_UPLOAD_ACTION, "document:delete"].includes(action)) return false;
     return !!(await CourseEnrollment.exists({
       tenantId,
       courseId,
       userId,
-      status: "active"
+      status: ACTIVE_ENROLLMENT_STATUS
     }).session(session || null));
   }
 
@@ -304,10 +330,27 @@ export class CourseService {
     );
   }
 
+  /**
+   * Lists active enrollments for a manager or assigned lecturer without granting students access.
+   *
+   * @param tenantId Tenant that owns the course.
+   * @param courseId Course whose enrollments are listed.
+   * @param userId Verified Auth user ID.
+   * @returns Active enrollment records in enrollment order.
+   * @throws ServiceError when the user lacks course or student-list permission.
+   */
   static async getCourseStudents(tenantId: string, courseId: string, userId: string) {
-    if (!(await this.canAccessCourse(tenantId, courseId, userId, "document:upload")))
-      throw new ServiceError("Không đủ quyền xem danh sách sinh viên!", 403);
-    return CourseEnrollment.find({ tenantId, courseId, status: "active" })
+    if (!(await this.canAccessCourse(tenantId, courseId, userId, COURSE_READ_ACTION)))
+      throw new ServiceError(STUDENT_LIST_FORBIDDEN_MESSAGE, STUDENT_LIST_FORBIDDEN_STATUS);
+    const member = await TenantMembership.findOne({
+      tenantId,
+      userId,
+      status: ACTIVE_MEMBERSHIP_STATUS,
+      deleted: false
+    }).select("role");
+    if (!member || !STUDENT_LIST_ROLES.has(member.role))
+      throw new ServiceError(STUDENT_LIST_FORBIDDEN_MESSAGE, STUDENT_LIST_FORBIDDEN_STATUS);
+    return CourseEnrollment.find({ tenantId, courseId, status: ACTIVE_ENROLLMENT_STATUS })
       .sort({ enrolledAt: -1 })
       .lean();
   }
