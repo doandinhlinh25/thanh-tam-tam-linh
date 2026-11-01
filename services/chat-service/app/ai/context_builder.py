@@ -1,5 +1,6 @@
 """Builds prompt context from validated evidence chunks."""
 from typing import List, Any
+from app.domain.value_objects.evidence import parse_positive_integer
 
 
 class ContextBuilder:
@@ -26,14 +27,8 @@ class ContextBuilder:
 
             source = str(source or "Unknown")
             content = str(content or "")
-            try:
-                p_from_int = max(1, int(float(p_from)))
-            except (ValueError, TypeError):
-                p_from_int = 1
-            try:
-                p_to_int = max(p_from_int, int(float(p_to)))
-            except (ValueError, TypeError):
-                p_to_int = p_from_int
+            p_from_int = parse_positive_integer(p_from, 1)
+            p_to_int = parse_positive_integer(p_to, p_from_int)
 
             page_info = f"Page {p_from_int}" if p_from_int == p_to_int else f"Pages {p_from_int}-{p_to_int}"
             parts.append(f"[{idx}] Source: {source} ({page_info})\nContent: {content}\n")

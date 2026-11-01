@@ -2,12 +2,36 @@
 from typing import Optional, Any
 import httpx
 from app.core.config import get_settings
+from app.core.exceptions import AppBaseException
 from app.integrations.retrieval_service.exceptions import (
     RetrievalServiceUnavailableException,
     RetrievalTimeoutException,
     RetrievalClientException,
     RetrievalServiceException,
+    RetrievalForbiddenException,
+    RetrievalRateLimitException,
+    RetrievalInvalidResponseException,
+    RETRIEVAL_ERROR_MESSAGE,
+    RETRIEVAL_UNAVAILABLE_MESSAGE,
+    RETRIEVAL_TIMEOUT_MESSAGE,
+    RETRIEVAL_CLIENT_ERROR_MESSAGE,
+    RETRIEVAL_FORBIDDEN_MESSAGE,
+    RETRIEVAL_RATE_LIMIT_MESSAGE,
+    RETRIEVAL_INVALID_RESPONSE_MESSAGE,
 )
+
+
+HTTP_OK = 200
+HTTP_FORBIDDEN = 403
+HTTP_RATE_LIMITED = 429
+HTTP_UNAVAILABLE = 503
+HTTP_TIMEOUT_STATUSES = (408, 504)
+HTTP_CLIENT_ERROR_START = 400
+HTTP_SERVER_ERROR_START = 500
+RETRIEVAL_UNAVAILABLE_CODES = frozenset(("SERVICE_UNAVAILABLE", "INDEX_NOT_READY"))
+RETRIEVAL_TIMEOUT_CODES = frozenset(("TIMEOUT", "GATEWAY_TIMEOUT"))
+RETRIEVAL_FORBIDDEN_CODES = frozenset(("FORBIDDEN", "ACCESS_DENIED"))
+RETRIEVAL_RATE_LIMIT_CODES = frozenset(("RATE_LIMITED", "TOO_MANY_REQUESTS"))
 
 
 class RetrievalServiceHttpClient:
@@ -33,7 +57,12 @@ class RetrievalServiceHttpClient:
         return self._client
 
     async def post_search(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """POST /internal/v1/retrieval/search with payload conforming to OpenAPI contract."""
+        """Send a retrieval search and reject unsafe or malformed upstream results.
+
+        :param payload: Existing search request for the internal retrieval route.
+        :returns: A successful envelope with a candidate list.
+        :raises AppBaseException: A sanitized technical or authorization failure.
+        """
         if self.base_url.endswith("/internal/v1"):
             path = "/retrieval/search"
         else:
@@ -43,64 +72,53 @@ class RetrievalServiceHttpClient:
 
         try:
             response = await client.post(path, json=payload)
-            if response.status_code == 200:
-                data = response.json()
-                if isinstance(data, dict) and data.get("successful") is False:
-                    err_info = data.get("error") or {}
-                    err_code = err_info.get("errorCode", "RETRIEVAL_ERROR")
-                    err_msg = err_info.get("errorMessage", str(err_info))
-                    if err_code in ("SERVICE_UNAVAILABLE", "INDEX_NOT_READY"):
-                        raise RetrievalServiceUnavailableException(
-                            f"Retrieval Service unavailable: {err_msg}",
-                            details={"status_code": 503, "error": err_info},
-                        )
-                    if err_code in ("TIMEOUT", "GATEWAY_TIMEOUT"):
-                        raise RetrievalTimeoutException(
-                            f"Retrieval Service timeout: {err_msg}",
-                            details={"status_code": 504, "error": err_info},
-                        )
-                    raise RetrievalServiceException(
-                        f"Retrieval Service error ({err_code}): {err_msg}",
-                        details={"error": err_info},
-                    )
+            if response.status_code == HTTP_OK:
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    raise RetrievalInvalidResponseException(RETRIEVAL_INVALID_RESPONSE_MESSAGE) from exc
+
+                if not isinstance(data, dict):
+                    raise RetrievalInvalidResponseException(RETRIEVAL_INVALID_RESPONSE_MESSAGE)
+                if data.get("successful") is False:
+                    error = data.get("error")
+                    code = error.get("errorCode") if isinstance(error, dict) else None
+                    if code in RETRIEVAL_UNAVAILABLE_CODES:
+                        raise RetrievalServiceUnavailableException(RETRIEVAL_UNAVAILABLE_MESSAGE)
+                    if code in RETRIEVAL_TIMEOUT_CODES:
+                        raise RetrievalTimeoutException(RETRIEVAL_TIMEOUT_MESSAGE)
+                    if code in RETRIEVAL_FORBIDDEN_CODES:
+                        raise RetrievalForbiddenException(RETRIEVAL_FORBIDDEN_MESSAGE)
+                    if code in RETRIEVAL_RATE_LIMIT_CODES:
+                        raise RetrievalRateLimitException(RETRIEVAL_RATE_LIMIT_MESSAGE)
+                    raise RetrievalServiceException(RETRIEVAL_ERROR_MESSAGE)
+                result = data.get("data")
+                if (
+                    data.get("successful") is not True
+                    or not isinstance(result, dict)
+                    or not isinstance(result.get("candidates"), list)
+                ):
+                    raise RetrievalInvalidResponseException(RETRIEVAL_INVALID_RESPONSE_MESSAGE)
                 return data
-            elif response.status_code == 503:
-                raise RetrievalServiceUnavailableException(
-                    f"Retrieval Service unavailable (HTTP 503): {response.text}",
-                    details={"status_code": 503, "response": response.text},
-                )
-            elif response.status_code in (504, 408):
-                raise RetrievalTimeoutException(
-                    f"Retrieval Service request timed out (HTTP {response.status_code}): {response.text}",
-                    details={"status_code": response.status_code, "response": response.text},
-                )
-            elif 400 <= response.status_code < 500:
-                raise RetrievalClientException(
-                    f"Retrieval Service client error (HTTP {response.status_code}): {response.text}",
-                    details={"status_code": response.status_code, "response": response.text},
-                )
-            else:
-                raise RetrievalServiceException(
-                    f"Retrieval Service unexpected error (HTTP {response.status_code}): {response.text}",
-                    details={"status_code": response.status_code, "response": response.text},
-                )
+            if response.status_code == HTTP_FORBIDDEN:
+                raise RetrievalForbiddenException(RETRIEVAL_FORBIDDEN_MESSAGE)
+            if response.status_code == HTTP_RATE_LIMITED:
+                raise RetrievalRateLimitException(RETRIEVAL_RATE_LIMIT_MESSAGE)
+            if response.status_code == HTTP_UNAVAILABLE:
+                raise RetrievalServiceUnavailableException(RETRIEVAL_UNAVAILABLE_MESSAGE)
+            if response.status_code in HTTP_TIMEOUT_STATUSES:
+                raise RetrievalTimeoutException(RETRIEVAL_TIMEOUT_MESSAGE)
+            if HTTP_CLIENT_ERROR_START <= response.status_code < HTTP_SERVER_ERROR_START:
+                raise RetrievalClientException(RETRIEVAL_CLIENT_ERROR_MESSAGE)
+            raise RetrievalServiceException(RETRIEVAL_ERROR_MESSAGE)
         except httpx.TimeoutException as exc:
-            raise RetrievalTimeoutException(f"Retrieval Service timed out: {exc}") from exc
+            raise RetrievalTimeoutException(RETRIEVAL_TIMEOUT_MESSAGE) from exc
         except (httpx.ConnectError, httpx.NetworkError) as exc:
-            raise RetrievalServiceUnavailableException(
-                f"Retrieval Service connection failed: {exc}"
-            ) from exc
-        except (
-            RetrievalServiceUnavailableException,
-            RetrievalTimeoutException,
-            RetrievalClientException,
-            RetrievalServiceException,
-        ):
+            raise RetrievalServiceUnavailableException(RETRIEVAL_UNAVAILABLE_MESSAGE) from exc
+        except AppBaseException:
             raise
         except Exception as exc:
-            raise RetrievalServiceException(
-                f"Unexpected error communicating with Retrieval Service: {exc}"
-            ) from exc
+            raise RetrievalServiceException(RETRIEVAL_ERROR_MESSAGE) from exc
 
     async def close(self) -> None:
         """Close managed httpx client if active."""

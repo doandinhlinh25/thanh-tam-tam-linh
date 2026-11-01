@@ -12,6 +12,10 @@ from app.ai.citation_validator import CitationValidator
 from app.ai.refusal_policy import RefusalPolicy
 from app.services.chat_service import ChatService
 from app.ai.llm.schemas import LLMResponse
+from app.integrations.retrieval_service.exceptions import (
+    RETRIEVAL_UNAVAILABLE_MESSAGE,
+    RetrievalServiceUnavailableException,
+)
 
 
 def test_chat_service_placeholder():
@@ -190,6 +194,23 @@ async def test_ai_pipeline_validation_failed_fallback_refusal():
 
 
 @pytest.mark.asyncio
+async def test_ai_pipeline_retrieval_failure_is_not_insufficient_evidence():
+    """An unavailable retrieval dependency remains a technical error before LLM."""
+    mock_retrieval_client = AsyncMock()
+    mock_retrieval_client.retrieve.side_effect = RetrievalServiceUnavailableException(
+        RETRIEVAL_UNAVAILABLE_MESSAGE
+    )
+    mock_llm_provider = AsyncMock()
+    pipeline = AIPipeline(retrieval_client=mock_retrieval_client, llm_provider=mock_llm_provider)
+    tenant_context = TenantContext(tenant_id="t1", user_id="u1", course_id="c1")
+
+    with pytest.raises(RetrievalServiceUnavailableException):
+        await pipeline.run(user_query="Câu hỏi", tenant_context=tenant_context)
+
+    mock_llm_provider.generate.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_chat_service_answer_question_delegation():
     """Verify ChatService coordinates smoothly with AIPipeline."""
     mock_pipeline = AsyncMock()
@@ -342,8 +363,11 @@ async def test_ai_pipeline_metadata_conforms_to_openapi():
 
     # 2. Insufficient evidence scenario metadata
     mock_retrieval_client.retrieve.return_value = []
+    mock_llm.generate.reset_mock()
     res_insufficient = await pipeline.run(user_query="Câu hỏi không có đáp án?", tenant_context=tenant_context)
     assert res_insufficient.result_state == "insufficient_evidence"
+    assert res_insufficient.citations == []
+    mock_llm.generate.assert_not_called()
     meta_ins = res_insufficient.metadata
     assert meta_ins["variant"] == "A"
     assert meta_ins["retriever_version"] == "v1.0"
