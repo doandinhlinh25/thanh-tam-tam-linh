@@ -25,3 +25,7 @@ class ForbiddenException(AppBaseException):
 class ValidationException(AppBaseException):
     status_code = 400
     error_code = "VALIDATION_ERROR"
+
+class ConflictException(AppBaseException):
+    status_code = 409
+    error_code = "CONFLICT"

@@ -7,3 +7,4 @@ class TenantContext:
     tenant_id: str
     user_id: str
     course_id: Optional[str] = None
+    request_id: Optional[str] = None

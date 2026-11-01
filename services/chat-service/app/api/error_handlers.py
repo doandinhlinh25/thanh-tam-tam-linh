@@ -28,15 +28,22 @@ def _request_id(request: Request) -> str:
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppBaseException)
     async def app_exception_handler(request: Request, exc: AppBaseException):
+        field_errors = exc.details if isinstance(exc.details, dict) else {}
         return JSONResponse(
             status_code=exc.status_code,
             content={
-                "success": False,
+                "successful": False,
+                "data": None,
                 "error": {
+                    "errorCode": exc.error_code,
+                    "errorMessage": exc.message,
+                    "fieldErrors": field_errors,
+                    # Backward compatibility aliases
                     "code": exc.error_code,
                     "message": exc.message,
                     "details": exc.details,
                 },
+                "success": False,
             },
         )
 
@@ -65,7 +72,8 @@ def register_error_handlers(app: FastAPI) -> None:
                     "error": {"code": "LLM_INVALID_REQUEST", "message": "Request không hợp lệ"},
                 },
             )
-        return JSONResponse(status_code=422, content={"detail": exc.errors()})
+        from fastapi.encoders import jsonable_encoder
+        return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:

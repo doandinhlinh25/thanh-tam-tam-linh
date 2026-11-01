@@ -1,17 +1,18 @@
 """Message domain entity."""
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any, Union
 from app.domain.enums.message_role import MessageRole
-from app.domain.value_objects.citation import Citation
+
 
 @dataclass
 class Message:
     id: str
     conversation_id: str
-    role: MessageRole
+    role: Union[MessageRole, str]
     content: str
     created_at: datetime
     refused: bool = False
     refusal_reason: Optional[str] = None
-    citations: List[Citation] = None
+    citations: Optional[List[Any]] = None
+    status: Optional[str] = None
