@@ -8,20 +8,20 @@ const router = Router();
 router.use(verifyOrigin);
 router.post(
   "/login",
-  accountValidate.loginPost,
   rateLimit("login", 15, 900),
+  accountValidate.loginPost,
   accountController.loginPost
 );
 router.post(
   "/password/forgot",
-  accountValidate.forgotPassword,
   rateLimit("forgot", 10, 900),
+  accountValidate.forgotPassword,
   accountController.forgotPasswordPost
 );
 router.post(
   "/password/reset",
-  accountValidate.resetPassword,
   rateLimit("reset", 15, 900),
+  accountValidate.resetPassword,
   accountController.resetPasswordPost
 );
 // Logout chỉ xóa cookie như duy-tam, kể cả khi JWT đã hết hạn.
@@ -32,8 +32,8 @@ router.get("/csrf", accountController.csrfGet);
 router.use(verifyCsrf);
 router.post(
   "/change-password",
-  accountValidate.changePassword,
   rateLimit("change-password", 10, 900),
+  accountValidate.changePassword,
   accountController.changePasswordPost
 );
 export default router;
