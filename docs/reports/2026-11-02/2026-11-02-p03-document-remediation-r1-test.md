@@ -4,6 +4,8 @@
 
 **TEST_BLOCKED.** F1 Redis dedup và F2 S3 payload bytes đã được xác minh độc lập; full Java suite đạt 34/34, Node build/typecheck đạt. Gate bắt buộc `git diff --check` không đạt vì một thay đổi khoảng trắng có sẵn trong báo cáo COOK cũ, ngoài phạm vi TEST. Không sửa hoặc commit thay đổi đó. Chưa đủ điều kiện kết luận `TEST_PASS` hay chuyển REVIEW R1.
 
+**Cập nhật 2026-11-02:** mục [Git Gate Recovery](#git-gate-recovery--2026-11-02) ở cuối báo cáo ghi việc khôi phục gate và kết luận `TEST_PASS`. Đoạn `TEST_BLOCKED` phía trên được giữ làm lịch sử của lượt TEST đầu.
+
 ## Provenance và phạm vi
 
 - Worktree `C:/Users/User/MyProjects/thanh-tam-tam-linh/.worktrees/p03-document`, branch `Linh-p03-document`, tested HEAD `cbb08bd475a0c660742f0d672de18342bd1fd7d9`.
@@ -55,3 +57,34 @@ Surefire XML sau full run: Health 3, Upload HTTP 5, Documents validation 2, Tena
 - Không thấy finding chức năng/bảo mật mới trong test đã chạy. Độ tin cậy regression F1 tăng vì Lua thực thi trên Redis thật và mutation evidence cho thấy assertion bắt duplicate event; F2 kiểm đúng bytes qua request body. Giới hạn: không tái chạy negative control ở TEST và chưa có upload E2E.
 - **Quyết định:** dừng ở TEST R1. Sau khi xử lý thay đổi có sẵn và `git diff --check` PASS, có thể kiểm tra lại gate và cân nhắc REVIEW R1 theo yêu cầu riêng của chủ dự án. Chưa đề xuất integration/merge.
 - File stage TEST: báo cáo này và mục TEST R1 trong `docs/handoffs/2026-10-31-p03-document.md`. File COOK report modified có sẵn được giữ nguyên, không thuộc commit TEST.
+
+## Git Gate Recovery — 2026-11-02
+
+### Blocker, ownership và diff trước sửa
+
+- Preflight recovery tại worktree P03, branch `Linh-p03-document`, HEAD `7172d96c3ecf15e49275349f4a9ae8fcba04f58c`. `git merge-base Linh HEAD` = `066baea8592f6f45e538272b947a3a2473c77305`. Chỉ `docs/reports/2026-10-31/2026-10-31-p03-document-cook.md` modified (unstaged); staged và untracked rỗng.
+- Toàn bộ `git diff -- <file>` chỉ gồm hunk dòng 6: `-` (dòng trống trong HEAD) thành `+ ` (dòng có đúng một dấu cách). `git diff --ignore-all-space --exit-code -- <file>` exit 0. Không có nội dung, đoạn văn, kết quả test hoặc định dạng khác thay đổi. `git diff --check` ban đầu exit 2, báo `trailing whitespace` tại dòng 6; `git diff --cached --check` exit 0.
+- File là artifact COOK của P03. Thay đổi đã có trước lượt TEST R1; không xác định được người đã gõ dấu cách, nên không nhận quyền sở hữu toàn bộ file hay thay đổi nội dung. Chủ dự án đã **phê duyệt riêng việc xóa đúng ký tự whitespace gây lỗi** trong yêu cầu Git Gate Recovery. Bản diff trước sửa được lưu tạm tại `%TEMP%/p03-r1-git-gate-before-7172d96.diff` và mô tả đầy đủ tại đây. Không stage/commit bản diff tạm.
+
+### Chỉnh sửa và checks sau sửa
+
+- Chỉ xóa dấu cách ở dòng 6 để khôi phục dòng trống giống HEAD. Không dùng reset/restore/stash, không format toàn file, không thay đổi nội dung báo cáo COOK và không đưa file đó vào commit recovery.
+- Ngay sau sửa, `git diff -- <file>` rỗng, `git status --short --branch` chỉ còn tên branch, `git diff --stat` rỗng. `git diff --check`, `git diff --cached --check`, và `git diff 066baea8592f6f45e538272b947a3a2473c77305 HEAD --check` đều **PASS, exit 0**. Cảnh báo LF/CRLF của Git không làm thay đổi diff hoặc exit code.
+- `git diff 7172d96 HEAD -- services/document-service contracts` và working diff cho code/test/config đều rỗng. Không đổi production Java, Redis Lua, S3 implementation, Java tests, API contract, migration/schema, fixture P08 hoặc worktree khác.
+- Sau kiểm tra trên, chỉ báo cáo TEST R1 này và mục recovery trong handoff được cập nhật. Hai file tài liệu này sẽ được stage/commit riêng; kiểm lại staged diff và worktree sau commit.
+
+### Hiệu lực bằng chứng và kết luận
+
+- Không chạy lại Java/Redis/S3 hoặc Node build/typecheck vì tested code, tests và cấu hình không đổi kể từ TEST R1 tại `cbb08bd`; commit `7172d96` chỉ thêm tài liệu. Bằng chứng TEST R1 vẫn có hiệu lực: Redis integration trên instance cô lập port 35806 **PASS, không skip**, negative control **evidence reviewed** (không tự tái chạy), S3 bytes assertion **PASS**, Java **34/34 PASS**, Node build/typecheck **PASS/PASS**. Redis tạm đã dừng. Upload E2E vẫn `E2E_NOT_RUN — UNSAFE_OR_UNVERIFIED_SANDBOX`.
+- **R1-AC4 chuyển từ BLOCKED thành PASS** sau khi working, staged và committed Git checks đều exit 0 và worktree sạch trước cập nhật docs. R1-AC1, AC2, AC3, AC5 giữ kết luận của lượt TEST đầu.
+
+| AC recovery | Kết quả | Bằng chứng |
+| --- | --- | --- |
+| GGR-AC1 — root cause | **PASS** | Toàn bộ diff là một dấu cách ở dòng 6; `--ignore-all-space` exit 0; `diff --check` trước sửa exit 2. |
+| GGR-AC2 — bảo toàn thay đổi | **PASS** | Chỉ xóa ký tự đã được phê duyệt; sau sửa COOK report giống HEAD, không mất nội dung. |
+| GGR-AC3 — Git gates | **PASS** | Working, staged và base-to-HEAD `--check` đều exit 0 sau sửa. |
+| GGR-AC4 — phạm vi | **PASS** | Không đổi production/test/config; recovery chỉ sửa whitespace được duyệt rồi cập nhật hai artifact TEST. |
+| GGR-AC5 — evidence | **PASS** | Mục này ghi preflight, diff cũ, hành động, lệnh và giới hạn test; handoff giữ lịch sử. |
+| GGR-AC6 — worktree | **PASS trước cập nhật docs** | `git status --short --branch` sạch ngay sau sửa whitespace; trạng thái cuối phải được kiểm lại sau commit tài liệu. |
+
+**Trạng thái TEST R1 sau recovery: `TEST_PASS`**, với điều kiện kiểm tra cuối sau commit xác nhận worktree sạch. Có thể **đề xuất** REVIEW R1 ở một lượt được giao riêng; đây không phải phê duyệt integration/merge. Hai rủi ro Redis–PostgreSQL consistency và S3 orphan vẫn tồn tại như trước.
