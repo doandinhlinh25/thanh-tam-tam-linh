@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -75,6 +76,38 @@ class UploadHttpTest {
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.data.tenantId").value(TENANT_ID));
         verify(service).upload(eq(COURSE_ID), eq(KEY), eq("lesson.pdf"), any(), eq(uploader));
+    }
+
+    @Test
+    void rejectsForbiddenUploadBeforeCallingService() throws Exception {
+        doThrow(new DocumentException(HttpStatus.FORBIDDEN, "DOCUMENT_ACCESS_DENIED", "Denied"))
+                .when(authorization).authorize(COURSE_ID, COOKIE);
+        mvc.perform(multipart(PATH).file(pdf()).header(DocumentContract.IDEMPOTENCY_HEADER, KEY)
+                        .header("Cookie", COOKIE)).andExpect(status().isForbidden());
+        verify(service, never()).upload(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void rejectsMissingKeyAndInvalidPdfWithoutCallingService() throws Exception {
+        when(authorization.authorize(COURSE_ID, COOKIE)).thenReturn(new AuthorizedUploader(TENANT_ID, USER_ID));
+        mvc.perform(multipart(PATH).file(pdf()).header("Cookie", COOKIE)).andExpect(status().isBadRequest());
+        MockMultipartFile invalid = new MockMultipartFile(DocumentContract.FILE_FIELD, "lesson.pdf",
+                DocumentContract.PDF_MIME, "not a pdf".getBytes(StandardCharsets.US_ASCII));
+        mvc.perform(multipart(PATH).file(invalid).header("Cookie", COOKIE)
+                        .header(DocumentContract.IDEMPOTENCY_HEADER, KEY)).andExpect(status().isUnsupportedMediaType());
+        verify(service, never()).upload(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void exposesIdempotencyConflictAs409() throws Exception {
+        AuthorizedUploader uploader = new AuthorizedUploader(TENANT_ID, USER_ID);
+        when(authorization.authorize(COURSE_ID, COOKIE)).thenReturn(uploader);
+        when(service.upload(eq(COURSE_ID), eq(KEY), any(), any(), eq(uploader)))
+                .thenThrow(new DocumentException(HttpStatus.CONFLICT, "DOCUMENT_IDEMPOTENCY_CONFLICT", "Conflict"));
+        mvc.perform(multipart(PATH).file(pdf()).header("Cookie", COOKIE)
+                        .header(DocumentContract.IDEMPOTENCY_HEADER, KEY))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.errorCode").value("DOCUMENT_IDEMPOTENCY_CONFLICT"));
     }
 
     private MockMultipartFile pdf() {
