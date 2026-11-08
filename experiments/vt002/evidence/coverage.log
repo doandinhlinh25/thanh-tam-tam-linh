@@ -1,0 +1,20 @@
+command=C:\Users\ASUS\AppData\Local\Programs\Python\Python313\python.exe -m coverage run --branch --include=*/app/services/idempotency.py -m unittest discover -s experiments/vt002 -p test_*.py
+exit_code=0
+..................Executing <Task pending name='Task-139' coro=<IdempotencyTests.test_T19_two_hundred_inflight_replays_commit_once() running at D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py:110> wait_for=<Future pending cb=[Task.task_wakeup()] created at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py:459> cb=[_run_until_complete_cb() at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py:181] created at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py:100> took 0.248 seconds
+...
+----------------------------------------------------------------------
+Ran 21 tests in 1.403s
+
+OK
+
+command=C:\Users\ASUS\AppData\Local\Programs\Python\Python313\python.exe -m coverage report -m
+exit_code=0
+Name                                                Stmts   Miss Branch BrPart  Cover   Missing
+-----------------------------------------------------------------------------------------------
+services\chat-service\app\services\idempotency.py      57      0     18      0   100%
+-----------------------------------------------------------------------------------------------
+TOTAL                                                  57      0     18      0   100%
+
+command=C:\Users\ASUS\AppData\Local\Programs\Python\Python313\python.exe -m coverage json -o D:\SE-BTTL\repo-evidence\experiments\vt002\evidence\coverage.json
+exit_code=0
+Wrote JSON report to D:\SE-BTTL\repo-evidence\experiments\vt002\evidence\coverage.json

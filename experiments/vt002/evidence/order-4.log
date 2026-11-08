@@ -1,0 +1,29 @@
+order_seed=4
+exit_code=0
+test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) ... ok
+test_T21_conflict_while_original_is_still_pending (test_idempotency.IdempotencyTests.test_T21_conflict_while_original_is_still_pending) ... ok
+test_T11_key_is_scoped_by_tenant_user_and_course (test_idempotency.IdempotencyTests.test_T11_key_is_scoped_by_tenant_user_and_course) ... ok
+test_T06_pairwise_1010 (test_idempotency.IdempotencyTests.test_T06_pairwise_1010) ... ok
+test_T03_pairwise_0101 (test_idempotency.IdempotencyTests.test_T03_pairwise_0101) ... ok
+test_T12_invalid_keys_do_not_invoke_backend (test_idempotency.IdempotencyTests.test_T12_invalid_keys_do_not_invoke_backend) ... ok
+test_T20_input_and_output_are_isolated_snapshots (test_idempotency.IdempotencyTests.test_T20_input_and_output_are_isolated_snapshots) ... ok
+test_T19_two_hundred_inflight_replays_commit_once (test_idempotency.IdempotencyTests.test_T19_two_hundred_inflight_replays_commit_once) ... Executing <Task pending name='Task-52' coro=<IdempotencyTests.test_T19_two_hundred_inflight_replays_commit_once() running at D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py:110> wait_for=<Future pending cb=[Task.task_wakeup()] created at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py:459> cb=[_run_until_complete_cb() at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py:181] created at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py:100> took 0.219 seconds
+ok
+test_T18_cancelled_waiter_does_not_cancel_shared_work (test_idempotency.IdempotencyTests.test_T18_cancelled_waiter_does_not_cancel_shared_work) ... ok
+test_T17_two_coordinators_share_unique_repository (test_idempotency.IdempotencyTests.test_T17_two_coordinators_share_unique_repository) ... ok
+test_T09_conflicting_question_is_409_without_write (test_idempotency.IdempotencyTests.test_T09_conflicting_question_is_409_without_write) ... ok
+test_T07_pairwise_1100 (test_idempotency.IdempotencyTests.test_T07_pairwise_1100) ... ok
+test_T01_pairwise_0000 (test_idempotency.IdempotencyTests.test_T01_pairwise_0000) ... ok
+test_T15_failure_before_commit_then_retry (test_idempotency.IdempotencyTests.test_T15_failure_before_commit_then_retry) ... ok
+test_T02_pairwise_0011 (test_idempotency.IdempotencyTests.test_T02_pairwise_0011) ... ok
+test_T05_pairwise_1001 (test_idempotency.IdempotencyTests.test_T05_pairwise_1001) ... ok
+test_T16_lost_response_replays_after_new_coordinator (test_idempotency.IdempotencyTests.test_T16_lost_response_replays_after_new_coordinator) ... ok
+test_T13_question_length_boundaries (test_idempotency.IdempotencyTests.test_T13_question_length_boundaries) ... ok
+test_T04_pairwise_0110 (test_idempotency.IdempotencyTests.test_T04_pairwise_0110) ... ok
+test_T10_all_semantic_payload_fields_are_fingerprinted (test_idempotency.IdempotencyTests.test_T10_all_semantic_payload_fields_are_fingerprinted) ... ok
+test_T08_pairwise_1111 (test_idempotency.IdempotencyTests.test_T08_pairwise_1111) ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 1.233s
+
+OK

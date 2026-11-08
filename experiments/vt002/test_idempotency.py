@@ -127,6 +127,19 @@ class IdempotencyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(replay["citations"][0]["document_id"], "synthetic-doc")
         self.assertEqual(self.repo.commits, 1)
 
+    async def test_T21_conflict_while_original_is_still_pending(self):
+        self.backend.pause = True
+        original = asyncio.create_task(self.service.execute(SCOPE, "key", BODY))
+        await self.backend.entered.wait()
+        try:
+            conflict = await self.api.post(SCOPE, "key", {"question": "changed"})
+            self.assertEqual(conflict, {"status": 409, "code": "KEY_CONFLICT"})
+            self.assertEqual((self.backend.calls, self.repo.commits), (1, 0))
+        finally:
+            self.backend.release.set()
+            await original
+        self.assertEqual(self.repo.commits, 1)
+
 
 def make_pairwise_test(row):
     async def check(self):

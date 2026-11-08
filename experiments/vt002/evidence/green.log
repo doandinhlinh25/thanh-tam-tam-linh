@@ -19,11 +19,12 @@ test_T15_failure_before_commit_then_retry (test_idempotency.IdempotencyTests.tes
 test_T16_lost_response_replays_after_new_coordinator (test_idempotency.IdempotencyTests.test_T16_lost_response_replays_after_new_coordinator) ... ok
 test_T17_two_coordinators_share_unique_repository (test_idempotency.IdempotencyTests.test_T17_two_coordinators_share_unique_repository) ... ok
 test_T18_cancelled_waiter_does_not_cancel_shared_work (test_idempotency.IdempotencyTests.test_T18_cancelled_waiter_does_not_cancel_shared_work) ... ok
-test_T19_two_hundred_inflight_replays_commit_once (test_idempotency.IdempotencyTests.test_T19_two_hundred_inflight_replays_commit_once) ... Executing <Task pending name='Task-139' coro=<IdempotencyTests.test_T19_two_hundred_inflight_replays_commit_once() running at D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py:110> wait_for=<Future pending cb=[Task.task_wakeup()] created at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py:459> cb=[_run_until_complete_cb() at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py:181] created at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py:100> took 0.192 seconds
+test_T19_two_hundred_inflight_replays_commit_once (test_idempotency.IdempotencyTests.test_T19_two_hundred_inflight_replays_commit_once) ... Executing <Task pending name='Task-139' coro=<IdempotencyTests.test_T19_two_hundred_inflight_replays_commit_once() running at D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py:110> wait_for=<Future pending cb=[Task.task_wakeup()] created at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py:459> cb=[_run_until_complete_cb() at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py:181] created at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py:100> took 0.236 seconds
 ok
 test_T20_input_and_output_are_isolated_snapshots (test_idempotency.IdempotencyTests.test_T20_input_and_output_are_isolated_snapshots) ... ok
+test_T21_conflict_while_original_is_still_pending (test_idempotency.IdempotencyTests.test_T21_conflict_while_original_is_still_pending) ... ok
 
 ----------------------------------------------------------------------
-Ran 20 tests in 1.042s
+Ran 21 tests in 1.296s
 
 OK
