@@ -105,3 +105,13 @@ transactional DB with a crash between message write and idempotency commit.
 The group must review this branch before merge. AI generated the draft plan,
 code and tests; weak status-only and duplicate happy-path tests were revised
 as recorded in `ai-draft-tests.txt`.
+
+## Report
+
+`report/main.tex` is the editable LaTeX source; use XeLaTeX on Overleaf to match
+the verified layout. `report/BT3_23001928_VT-002.pdf` was compiled locally:
+8 main pages plus 2 appendix pages (AI Usage Log and execution excerpts).
+All 10 pages were rendered and visually checked; no content overfull-box or
+missing-character warnings remain. The reflection has 310 whitespace-separated
+Vietnamese words. `evidence/report-validation.json` records file hashes and
+scope; the report is an AI-assisted draft for the student's final review.

@@ -1,0 +1,413 @@
+% Overleaf: khuyen nghi XeLaTeX de khop ban PDF da kiem tra.
+% Van ho tro pdfLaTeX/LuaLaTeX; font va ngat trang co the khac nhe.
+% Bo cuc: 8 trang chinh; phu luc AI/log tach rieng.
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=18mm,headheight=14pt]{geometry}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T5]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage[vietnamese]{babel}
+\else
+  \usepackage{fontspec}
+  \setmainfont{texgyretermes-regular.otf}[
+    BoldFont=texgyretermes-bold.otf,
+    ItalicFont=texgyretermes-italic.otf,
+    BoldItalicFont=texgyretermes-bolditalic.otf]
+  \setsansfont{texgyreheros-regular.otf}[
+    BoldFont=texgyreheros-bold.otf,
+    ItalicFont=texgyreheros-italic.otf,
+    BoldItalicFont=texgyreheros-bolditalic.otf]
+  \setmonofont[Scale=0.82]{lmmono10-regular.otf}
+  \usepackage{polyglossia}
+  \setdefaultlanguage{vietnamese}
+\fi
+\usepackage{amsmath,array,booktabs,enumitem,xcolor,etoolbox}
+\usepackage{fancyhdr,fvextra,titlesec}
+\usepackage[obeyspaces]{url}
+\usepackage{xurl}
+\usepackage[unicode,colorlinks=true,urlcolor=blue!55!black,linkcolor=blue!55!black]{hyperref}
+\urlstyle{tt}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+% Always start/end tables as paragraphs, even directly after a bold label.
+\BeforeBeginEnvironment{tabular}{\par\noindent}
+\AfterEndEnvironment{tabular}{\par}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.13}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlength{\emergencystretch}{1em}
+\setlist[itemize]{leftmargin=*,nosep,topsep=3pt}
+\setlist[enumerate]{leftmargin=*,nosep,topsep=3pt}
+\titleformat{\section}{\large\bfseries\color{blue!45!black}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+\titlespacing*{\section}{0pt}{6pt}{6pt}
+\titlespacing*{\subsection}{0pt}{5pt}{3pt}
+\DeclareRobustCommand{\code}[1]{\nolinkurl{#1}}
+\DefineVerbatimEnvironment{Code}{Verbatim}{fontsize=\footnotesize,breaklines=true,breakanywhere=true,frame=single,framesep=3pt}
+\newcommand{\Repo}{https://github.com/doandinhlinh25/thanh-tam-tam-linh}
+\newcommand{\Branch}{bt3/23001928-vt002-idempotency}
+\newcommand{\Base}{8aaceec1c4d4958e69536c622ad78dc58825ad29}
+\newcommand{\Red}{d51ebc03bd747a35a428dc40cf6d491541fcdcbf}
+\newcommand{\Green}{1f4fc75c153864d4bec4e544c65761133b4b306a}
+\newcommand{\Evidence}{362703817e2d01a7915a076b954fcbf3038771b5}
+\newcommand{\Mutant}{5aec9fc3b6b1fcb5c7ef6a2ca49b5017e9c28625}
+\newcommand{\fref}[2]{\href{\Repo/blob/\Evidence/#1}{#2}}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small BT cá nhân 3 · AI-01 · VT-002}
+\fancyhead[R]{\small Nguyễn Duy Tâm · 23001928}
+\fancyfoot[C]{\small\thepage}
+\begin{document}
+\small
+
+% ==================== TRANG CHINH 1 ====================
+\begin{center}
+{\Large\bfseries BÀI TẬP CÁ NHÂN 3 -- VT-002}\\[3pt]
+{\large AI-assisted Development và Quality Engineering}
+\end{center}
+\begin{tabular}{@{}L{33mm}L{\dimexpr\textwidth-33mm-2\tabcolsep\relax}@{}}
+\textbf{Sinh viên} & Nguyễn Duy Tâm -- 23001928\\
+\textbf{Nhóm / vai trò} & SE2026-T01 / Thành viên\\
+\textbf{Đề tài} & AI-01 -- RAG trợ giảng cho tài liệu môn học\\
+\textbf{Repository} & \href{\Repo}{doandinhlinh25/thanh-tam-tam-linh}\\
+\textbf{Baseline} & \code{8aaceec1c4d4958e69536c622ad78dc58825ad29}\\
+\textbf{Branch nộp bài} & \href{\Repo/tree/\Branch}{\code{bt3/23001928-vt002-idempotency}}\\
+\textbf{Ngày kiểm chứng} & 08/11/2026; Python 3.13.7; Windows\\
+\end{tabular}
+
+\textit{Tôi chịu trách nhiệm về toàn bộ code, test và nội dung bài làm; tôi đã khai báo việc sử dụng AI.}
+
+\section{Specification, acceptance criteria và invariant}
+\textbf{Problem statement.} Mất phản hồi hoặc thao tác gửi lại có thể khiến cùng một câu hỏi Chat được xử lý nhiều lần. Người dùng cần gửi lại một yêu cầu logic mà vẫn nhận cùng kết quả, không sinh thêm bản ghi kết quả. Khóa idempotency phải được ràng buộc với phạm vi người dùng và toàn bộ payload có ý nghĩa nghiệp vụ.
+
+\textbf{Đối chiếu repo thật.} Baseline mới đã có Chat Python/FastAPI; không dùng lại mô tả skeleton của BT2. Controller Chat sinh \code{message_id} mới mỗi lần gọi. \code{PostgresMessageRepository} mới có constructor, chưa triển khai các phương thức của interface. Vì vậy chọn \textbf{executable harness} theo ngoại lệ của đề: module điều phối đặt cạnh Chat, kho dữ liệu và RAG giả được inject; chưa nối endpoint production. Lecture 06/07 chưa được cung cấp, nên bài không gán nội dung cho slide chưa đọc.
+
+\begin{tabular}{@{}L{10mm}L{\dimexpr\textwidth-10mm-2\tabcolsep\relax}@{}}
+\toprule
+\textbf{ID} & \textbf{Acceptance criterion kiểm thử được}\\\midrule
+AC1 & Cùng tenant/user/course, key và payload chuẩn hóa: replay tuần tự hoặc đồng thời trả cùng kết quả; chỉ một bản ghi được commit.\\[2pt]
+AC2 & Cùng scoped key nhưng khác question, conversation hoặc personal-docs: trả 409; không thêm bản ghi.\\[2pt]
+AC3 & Cùng key ở tenant, user hoặc course khác: xử lý độc lập, không replay nhầm dữ liệu.\\[2pt]
+AC4 & Key ASCII an toàn dài 1--64; question dài 1--4000 ký tự, gồm hai biên. Input sai trả 400 trước khi gọi backend.\\[2pt]
+AC5 & Lỗi trước commit không để lại dòng kết quả; retry sau đó thành công. Mất phản hồi sau commit cho phép replay từ cùng repository.\\
+\bottomrule
+\end{tabular}
+
+\textbf{Non-functional constraints.} (N1) Kiểm chứng 200 tác vụ đồng thời và so với p95 $\leq5.0$ giây; tách kết luận mô phỏng khỏi production. (N2) Suite không phụ thuộc network, sleep thời gian thực hoặc thứ tự; mỗi test có store/event loop riêng. (N3) Chỉ thêm lát cắt nhỏ, không thay auth/DB nghiệp vụ, không merge trước review nhóm.
+
+\textbf{Invariant chính:} một scoped key chỉ ánh xạ tới một fingerprint và một kết quả đã commit; mọi replay nhận snapshot độc lập. Repository thật phải bảo vệ unique key và ghi message cùng replay record trong một transaction. Khóa in-memory không đủ cho nhiều process.
+
+\newpage
+% ==================== TRANG CHINH 2 ====================
+\section{AI-assisted plan, review và test strategy}
+\textbf{Prompt lập kế hoạch} (brief tác vụ cho Codex, ghi trước patch):
+\begin{quote}
+Đối chiếu repo hiện tại và chọn lát cắt idempotency nhỏ, chạy được. Trước code, chỉ rõ assumptions, file thay đổi, spec và test RED. Sinh test pairwise, lỗi biên 4000, failure/retry, cancellation; sau patch đo coverage, mutation \(>\) thành \(\geq\), kiểm tra flaky và 200 tác vụ. Không tạo evidence giả hoặc gọi LLM thật.
+\end{quote}
+
+\textbf{Assumptions được công khai.} Context tenant/user/course trong harness đã được fixture cấp quyền; không dùng các header demo làm nguồn xác thực. Fake repository mô phỏng \code{get} và \code{insert_once} atomic. Operation chỉ tính kết quả, chưa được tự commit side effect ngoài kiểm soát. Key không có TTL trong lát cắt này; vì vậy không có logic phụ thuộc đồng hồ.
+
+\textbf{Hai điểm đã sửa/bác bỏ trong plan.}
+\begin{enumerate}
+\item \emph{Dùng QuotaService Node làm guard chung cho Chat}: bác bỏ. \code{services/tenant-service/services/quota.service.ts} đã dedupe quota bằng MongoDB, nhưng không lưu/replay response của Chat Python. Giữ ownership của mỗi service; thêm module thuần Python cạnh Chat.
+\item \emph{Dùng X-Request-Id như idempotency key}: sửa. Controller hiện coi đây là tracing ID tùy chọn; không ràng buộc với payload và vẫn sinh message ID mới. Harness dùng explicit key riêng, scope tenant/user/course, hash đủ ba trường của request schema.
+\end{enumerate}
+
+\textbf{File dự định thay đổi và trình tự.}
+\begin{enumerate}
+\item Lưu plan ở \code{docs/plans/2026-11-08/vt002-idempotency.md} và nháp AI tests; tạo branch từ baseline đã fetch.
+\item Thêm \code{app/services/idempotency.py} trong Chat cùng test/harness ở \code{experiments/vt002/}; chạy scaffold ngây thơ để thu RED rồi commit.
+\item Patch register pending task, fingerprint, replay repository và snapshot; đọc diff; thu GREEN rồi commit.
+\item Tạo nhánh/worktree mutation riêng; chạy suite và lưu diff/log. Đo coverage, chạy năm thứ tự test, chạy load; viết README, review và báo cáo.
+\end{enumerate}
+
+\textbf{Test strategy dựa trên risk.}
+\begin{tabular}{@{}L{24mm}L{67mm}L{\dimexpr\textwidth-91mm-4\tabcolsep\relax}@{}}
+\toprule
+\textbf{Mức} & \textbf{Kiểm tra / lý do} & \textbf{Giới hạn}\\\midrule
+Unit & Validation, fingerprint, exact boundary, pending conflict và snapshot; chạy nhanh, không I/O ngoài. & Không chứng minh transaction DB.\\[3pt]
+Integration kiểu API & HarnessApi nối facade, coordinator, FakeRag và MemoryRepository; kiểm tra 200/400/409/503, số lần gọi và số dòng. & Là in-process facade; chưa phải FastAPI HTTP.\\[3pt]
+E2E thật & Hoãn browser/gateway/auth/DB/LLM; bước tiếp theo có giá trị là hai process cùng DB và crash injection. & Không dựng UI hay gọi paid API chỉ để tăng số test.\\
+\bottomrule
+\end{tabular}
+
+\textbf{Không cần trong patch này:} test giao diện không thay đổi, gọi internet thật trong mỗi unit test, hoặc lặp happy path chỉ đổi tên test. Negative cases được tách khỏi covering array hợp lệ để có oracle rõ cho 400/409; failure path T15 dùng exception được điều khiển, không dùng network outage ngẫu nhiên.
+
+\newpage
+% ==================== TRANG CHINH 3 ====================
+\section{Pairwise/combinatorial testing}
+\textbf{Bốn factor nhị phân.} A: tenant A/B; B: question dài 1/4000; C: tuần tự/đồng thời; D: personal-docs false/true. Key và scope còn lại hợp lệ. Mỗi case gửi \textbf{hai lần cùng scoped key/payload}; các factor thay đổi để kiểm tra replay qua nhiều tổ hợp, không chỉ một happy path.
+
+Full factorial cần $2^4=16$ cấu hình. Chọn 8 hàng với ba bit $a,b,c$ và $d=a\oplus b\oplus c$. \code{pairwise.py} kiểm tra độc lập mọi cặp factor và bốn tổ hợp giá trị: tổng $\binom42\times4=24$ cặp cần phủ, không còn cặp thiếu. Đây là phủ strength 2, không phải exhaustive hay bảo đảm tương tác ba/bốn chiều.
+
+\begin{center}
+\begin{tabular}{@{}L{12mm}C{24mm}C{30mm}C{29mm}C{31mm}@{}}
+\toprule
+\textbf{Case} & \textbf{A: tenant} & \textbf{B: độ dài} & \textbf{C: lịch gọi} & \textbf{D: personal}\\\midrule
+T01 & A (0) & 1 (0) & Tuần tự (0) & False (0)\\
+T02 & A (0) & 1 (0) & Đồng thời (1) & True (1)\\
+T03 & A (0) & 4000 (1) & Tuần tự (0) & True (1)\\
+T04 & A (0) & 4000 (1) & Đồng thời (1) & False (0)\\
+T05 & B (1) & 1 (0) & Tuần tự (0) & True (1)\\
+T06 & B (1) & 1 (0) & Đồng thời (1) & False (0)\\
+T07 & B (1) & 4000 (1) & Tuần tự (0) & False (0)\\
+T08 & B (1) & 4000 (1) & Đồng thời (1) & True (1)\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Test-case contract cho T01--T08.} Mỗi dòng sau là một test method riêng, được sinh từ đúng hàng covering array; không chỉ là tám lần ghi cùng một case.
+\begin{tabular}{@{}L{9mm}L{16mm}L{14mm}L{47mm}L{59mm}L{10mm}@{}}
+\toprule
+\textbf{ID} & \textbf{Risk / AC} & \textbf{Level} & \textbf{Precondition / input} & \textbf{Expected result} & \textbf{P}\\\midrule
+T01 & AC1; replay & H & Fresh store; row 0000; gửi hai lần. & Cả hai 200; cùng body/ID; call=1, commit=1. & P0\\[3pt]
+T02 & AC1; race & H & Fresh store; row 0011; gather hai lệnh. & Như T01 dù hai request cùng chờ. & P0\\[3pt]
+T03 & AC1/4 & H & Row 0101; question đúng 4000 ký tự. & Nhận hợp lệ; replay cùng body; commit=1. & P0\\[3pt]
+T04 & AC1/4 & H & Row 0110; biên 4000 và đồng thời. & 200, cùng ID; call=1, commit=1. & P0\\[3pt]
+T05 & AC1 & H & Row 1001; tenant B, personal=true. & Replay ổn định trong scope B. & P1\\[3pt]
+T06 & AC1; race & H & Row 1010; tenant B, đồng thời. & 200, cùng body; chỉ một dòng. & P0\\[3pt]
+T07 & AC1/4 & H & Row 1100; tenant B, dài 4000. & Biên được chấp nhận; replay ổn định. & P0\\[3pt]
+T08 & AC1/4 & H & Row 1111; cả bốn mức 1. & 200, cùng body; call=1, commit=1. & P0\\
+\bottomrule
+\end{tabular}
+
+\textbf{Chú giải:} H = integration qua facade harness; U/H ở trang sau = validation/logic unit quan sát qua cùng facade. P0 ưu tiên cao nhất. Ngoài status, oracle luôn kiểm tra dữ liệu hoặc side effect; vì vậy test có thể bắt một implementation trả 200 nhưng ghi trùng.
+
+\textbf{Tái lập dữ liệu:} input là chuỗi Q lặp theo độ dài, ID tenant/user/course giả và key cố định; không UUID ngẫu nhiên hay dữ liệu cá nhân. Một constructor fixture tạo store mới cho từng test. Các case negative/boundary bổ sung ở trang kế tiếp không làm thay đổi tuyên bố phủ pairwise hợp lệ.
+
+\newpage
+% ==================== TRANG CHINH 4 ====================
+\section{Test cases bổ sung theo risk}
+\textbf{Fixture chung:} scope A hợp lệ, key hợp lệ, FakeRag không có mạng và MemoryRepository ban đầu rỗng, trừ khi ghi khác. File test duy nhất: \code{experiments/vt002/test_idempotency.py}.
+
+\begin{tabular}{@{}L{9mm}L{16mm}L{14mm}L{47mm}L{59mm}L{10mm}@{}}
+\toprule
+\textbf{ID} & \textbf{Risk / AC} & \textbf{Level} & \textbf{Precondition / input} & \textbf{Expected result} & \textbf{P}\\\midrule
+T09 & AC2; negative & H & Gửi Q rồi đổi question, giữ key/scope. & 409 KEY\_CONFLICT; backend=1, commit=1. & P0\\[4pt]
+T10 & AC2; hash & U/H & Lần lượt đổi conversation hoặc personal; thử cả defaults tường minh. & Trường khác gây 409; default null/false tương đương trường bỏ trống. & P0\\[4pt]
+T11 & AC3; isolation & H & Cùng key, lần lượt đổi từng tenant/user/course. & Bốn scope cho bốn kết quả độc lập; bốn dòng. & P0\\[4pt]
+T12 & AC4; negative & U/H & Key null/rỗng/có space/non-ASCII/dài 65; key 64 hợp lệ. & Key sai: 400, không backend/commit; key 64: 200. & P0\\[4pt]
+T13 & AC4; boundary & U/H & Question dài 0, 1, 3999, 4000, 4001. & 400, 200, 200, 200, 400; tổng ba dòng. & P0\\[4pt]
+T14 & AC4; schema & U/H & Payload null/list/thiếu Q/sai kiểu/field lạ; scope sai hoặc rỗng. & 400 ở mọi input sai; backend=0, commit=0. & P0\\[4pt]
+T15 & AC5; failure & H & Backend fail có điều khiển trước commit; retry cùng request. & Lần đầu 503 và 0 dòng; retry 200; hai call, một commit. & P0\\[4pt]
+T16 & AC5; lost reply & H & Bỏ response đã commit; coordinator mới dùng cùng store. & Replay cùng body/ID; backend không tăng, commit=1. & P0\\[4pt]
+T17 & AC1; 2 owners & H & Hai coordinator cùng key và cùng repository. & Hai phép tính được phép; một dòng commit và cùng response cuối. & P0\\[4pt]
+T18 & Hủy chờ & H & Gate giữ operation; hủy một waiter; thả gate. & Waiter còn lại hoàn thành; một call/commit. & P0\\[4pt]
+T19 & AC1; tải & H & 200 caller cùng key; Event giữ operation pending. & 200 kết quả giống nhau; backend=1, commit=1. & P0\\[4pt]
+T20 & Shared state & U/H & Sửa input khi pending, rồi sửa citation trong output. & Answer dùng input gốc; replay citation không bị sửa theo caller. & P1\\[4pt]
+T21 & AC2; pending & H & Q còn pending; gửi question khác cùng key. & 409 trước commit; original hoàn thành đúng một dòng. & P0\\
+\bottomrule
+\end{tabular}
+
+\textbf{Failure-path gắn flaky risk.} T15 không đợi thời điểm network ngắt; fixture ném lỗi ở điểm trước commit đã biết. T18/T19/T21 đồng bộ bằng Event thay vì sleep cố định. Như vậy oracle dựa trên trạng thái đã đạt, không dựa vào giả định ``máy sẽ chạy đủ nhanh sau vài mili giây''.
+
+\textbf{AI-generated tests đã sửa/xóa.} W1 chỉ assert status=200: thay bằng equality body/ID, call count và commit count trong T01--T08. W2 lặp sequential happy path chỉ đổi tên: xóa bản trùng, dùng lịch concurrent có gate và failure/retry. Nháp và quyết định được lưu trong \code{ai-draft-tests.txt}; không tăng số case bằng những bản sao cùng oracle/lịch chạy.
+
+\newpage
+% ==================== TRANG CHINH 5 ====================
+\section{Test-first change và mutation experiment}
+\textbf{Baseline và branch.} Fetch repo chính thức trước khi chọn baseline \code{8aaceec}; tạo nhánh riêng \code{bt3/23001928-vt002-idempotency}. Không merge. RED là scaffold mới của harness, không phải tuyên bố bộ test production tại baseline đã fail.
+
+\begin{tabular}{@{}L{22mm}L{27mm}L{\dimexpr\textwidth-49mm-4\tabcolsep\relax}@{}}
+\toprule
+\textbf{Mốc} & \textbf{Commit} & \textbf{Evidence thực thi}\\\midrule
+RED & \href{\Repo/commit/\Red}{\code{d51ebc0}} & 20 method; 27 assertion failures và 2 errors ở subtests payload sai; T01 trả message-0001 rồi message-0002.\\[3pt]
+GREEN code & \href{\Repo/commit/\Green}{\code{1f4fc75}} & 20/20 pass sau patch. Lưu log, giữ nguyên yêu cầu replay.\\[3pt]
+Evidence cuối & \href{\Repo/commit/\Evidence}{\code{3627038}} & Thêm T21 cho gap pending conflict: 21/21 pass; coverage và năm thứ tự chạy được lưu.\\[3pt]
+Mutation tạm & \code{5aec9fc} & Nhánh/worktree riêng, cha là 1f4fc75; không thuộc ancestry nhánh nộp. Log và diff được chép vào evidence.\\
+\bottomrule
+\end{tabular}
+Số lỗi RED lớn hơn số method vì unittest đếm từng subtest. Các lỗi duplicate ID và tăng backend call chứng minh fail đúng hành vi; hai lỗi input sai cũng được giữ nguyên trong log, không che đi. Không có import/dependency error làm lý do RED.
+
+\textbf{Patch nhỏ và review diff.} Thêm module 89 dòng, 57 executable statements; không sửa controller/schema production. Luồng chính:
+\begin{Code}
+scoped_key, fingerprint, snapshot = normalize(scope, key, payload)
+async with self._lock:
+    # Reuse pending task for same hash; raise 409 on a different hash.
+    # Otherwise register _perform(...) before yielding to the backend.
+return deepcopy(await asyncio.shield(task))
+
+# _perform: repository.get -> replay OR operation -> insert_once
+# finally: remove the finished entry from the pending map.
+\end{Code}
+Review kiểm tra: lock không giữ trong lúc chạy backend; hash chứa question/conversation/personal-docs với defaults chuẩn hóa; shield bảo vệ waiter còn lại; snapshot tách mutable state; kết quả hoàn thành nằm ở repository, không bị giữ mãi trong cache. \code{insert_once} là contract atomic bắt buộc với adapter DB thật. T17 cho thấy vẫn có thể tính hai lần giữa hai coordinator.
+
+\textbf{Mutation bắt buộc.} Schema request thật chấp nhận question dài tối đa 4000, nên guard đúng và mutant là:
+\begin{Code}
+# Correct (submission branch)
+len(question) > MAX_QUESTION_LENGTH
+# Deliberate mutant (temporary branch only)
+len(question) >= MAX_QUESTION_LENGTH
+\end{Code}
+Mutation làm input dài đúng 4000 bị trả 400. Suite tại code commit 1f4fc75 bắt lỗi bằng T03/T04/T07/T08 và T13: \textbf{6 assertion/subtest failures thuộc 5 method}; trong T13 có cả sai status và sai tổng số dòng. Child unittest exit=1; wrapper mutation xác nhận đây là assertion failure rồi kết thúc thành công theo contract của công cụ.
+
+\textbf{Kết luận sức mạnh test:} mutant đã chết, không cần sửa test để bắt mutant này. T21 được thêm vì coverage/risk pending conflict, không phải do mutation sống sót. Một mutant bị bắt không chứng minh mọi lỗi idempotency đều bị phát hiện; không suy ra mutation score toàn dự án.
+
+\newpage
+% ==================== TRANG CHINH 6 ====================
+\section{Coverage, flaky review và performance experiment}
+\textbf{Coverage đúng phạm vi.} coverage.py 7.13.1 đo riêng \code{app/services/idempotency.py}: \textbf{57/57 statements, 18/18 branch exits}, không còn missing line/branch. Lần đo trước thiếu dòng 69, tức conflict khi request còn pending; T21 bổ sung đúng tình huống đó. Đây không phải coverage của FastAPI, fake repository, DB hay toàn dự án; cũng không phải condition/MC/DC coverage của mọi vế boolean.
+
+\begin{tabular}{@{}L{23mm}L{67mm}L{\dimexpr\textwidth-90mm-4\tabcolsep\relax}@{}}
+\toprule
+\textbf{Flaky risk} & \textbf{Cách kiểm soát và evidence} & \textbf{Điều chưa chứng minh}\\\midrule
+Time & Không TTL/deadline trong business slice; không sleep theo thời gian thực. Event điều khiển điểm pending/failure; sleep(0) chỉ nhường lịch. & Chưa có expiry, timeout hay retry theo đồng hồ production.\\[3pt]
+Order/state & Store, backend, loop mới mỗi test; replay năm subprocess với seed thứ tự 0--4: 21/21 pass trong cả năm. & Năm permutation không phủ mọi thứ tự hay mọi lịch OS.\\[3pt]
+Network & Gating tests không mở socket, không gọi LLM/DB ngoài; T15 inject lỗi xác định. & Chưa kiểm tra packet loss, timeout thật, DNS hay proxy.\\[3pt]
+Concurrency & Gate pending và assert call/commit count; T18/T19/T21. & Một event loop khác multi-process và DB thật.\\
+\bottomrule
+\end{tabular}
+
+\textbf{Môi trường chạy.} Python 3.13.7 trên Windows. Sandbox Codex treo cả ví dụ asyncio tối thiểu; các lần chạy ghi log được thực hiện ngoài sandbox với fixture cục bộ. Không coi việc treo môi trường là RED nghiệp vụ. Coverage là công cụ test cài riêng, không thêm runtime dependency vào repo.
+
+\textbf{Harness tải.} \code{load.py} tạo 200 coroutine đợi start Event; chỉ thả khi cả 200 đã ready. Đo bằng \code{perf_counter}; latency từng request gồm xử lý sau barrier tới response facade. p95 nearest rank: phần tử thứ 190 trong 200 mẫu đã sort, index 189. Mỗi workload lưu đủ 200 mẫu trong \code{evidence/load.json}.
+
+\begin{center}
+\begin{tabular}{@{}L{48mm}C{24mm}C{24mm}C{24mm}C{23mm}@{}}
+\toprule
+\textbf{Workload} & \textbf{Peak caller} & \textbf{Backend call} & \textbf{Commit} & \textbf{p95 (ms)}\\\midrule
+200 key khác nhau & 200 & 200 & 200 & 4.6169\\[3pt]
+200 retry cùng key & 200 & 1 & 1 & 1.8964\\
+\bottomrule
+\end{tabular}
+\end{center}
+Hai workload đều nhận 200 response thành công, không có mẫu lỗi bị loại khỏi phép đo. Peak operation của fake backend lần lượt là 200 và 1; p50 lần lượt 4.1234 và 1.6459 ms. Cả hai p95 mô phỏng nhỏ hơn \textbf{5000 ms = 5.0 s}.
+
+\textbf{Giới hạn kết luận.} FakeRag chỉ yield một lần; store là dict được khóa trong process. Không có HTTP/TLS, xác thực, I/O DB, inference/token generation, tranh tài nguyên nhiều process hay crash. Đây là một lần đo smoke-load trên dữ liệu giả, không có warm-up/statistical confidence interval; không được ghi ``hệ thống RAG production đạt SLO''. Tải thật tiếp theo cần DB/provider stub có latency điều khiển, HTTP client 200 inflight và metrics lỗi/tail latency.
+
+\newpage
+% ==================== TRANG CHINH 7 ====================
+\section{Traceability và engineering review}
+\textbf{Quy ước đường dẫn:} F = \code{experiments/vt002/test_idempotency.py}; P = \code{services/chat-service/app/services/idempotency.py}. Commit C = \code{3627038}, chứa suite cuối và log; code thực thi của P xuất phát từ \code{1f4fc75}.
+
+\begin{tabular}{@{}L{23mm}L{32mm}L{31mm}L{\dimexpr\textwidth-86mm-6\tabcolsep\relax}@{}}
+\toprule
+\textbf{AC / Risk} & \textbf{Test case} & \textbf{File / commit} & \textbf{Kết quả / evidence}\\\midrule
+AC1 replay & T01--T08, T19 & F, P / C & GREEN; cùng body, một commit.\\[3pt]
+AC1 nhiều owner & T17 & F, support.py / C & Một dòng; hai phép tính vẫn được phép.\\[3pt]
+AC2 hash conflict & T09/T10/T21 & F, P / C & 409 cả completed và pending; không thêm dòng.\\[3pt]
+AC3 isolation & T11 & F, P / C & Bốn scope độc lập; bốn dòng.\\[3pt]
+AC4 input/biên & T12--T14 & F, P / C & GREEN; exact 4000 hợp lệ.\\[3pt]
+AC5 retry/lost & T15/T16 & F, support.py / C & Precommit fail=0 dòng; retry/replay đúng.\\[3pt]
+Cancel/state & T18/T20 & F, P / C & Không hủy shared work; snapshot độc lập.\\[3pt]
+Mutation & T03/04/07/08/13 & F / 1f4fc75; mutant 5aec9fc & KILLED; mutation.log và mutation.diff.\\[3pt]
+Order/network & T01--T21 & verify.py / C & Năm order seeds pass; không network ngoài.\\[3pt]
+200 / p95 & Hai workload & load.py / C & Peak 200; p95 4.6169/1.8964 ms mô phỏng.\\
+\bottomrule
+\end{tabular}
+
+\textbf{Hai điểm AI-generated code/tests có vẻ hợp lý nhưng chưa đáng tin ngay.}
+\begin{enumerate}
+\item Status-only oracle có thể pass dù response ID khác và DB ghi hai dòng. Vì vậy cần kiểm tra equality, số call, số commit và data isolation. Nháp W1/W2 đã được thay/xóa như trang 4 và AI Usage Log.
+\item Dictionary + asyncio lock nhìn như ``exactly once'', nhưng chỉ khóa một loop. T17 cố ý dùng hai coordinator và quan sát hai phép tính/một commit. Muốn bảo vệ giao dịch thật phải có unique constraint và transaction; không hứa chỉ tính phí LLM một lần.
+\end{enumerate}
+
+\textbf{Review actual diff.} Không sửa code Node/UI, không đổi production endpoint/auth, không nâng dependency runtime. Patch có snapshot, phân biệt conflict/invalid/backend failure và dọn pending entries. Generated bytecode lỡ vào RED commit đã được bỏ khỏi cây cuối và ignore; lịch sử RED vẫn được giữ nguyên để không viết lại evidence. Review trong bài là Codex tự review, không gán là nhóm hoặc một người độc lập đã duyệt.
+
+\textbf{Decision:} chấp nhận có điều kiện cho \emph{bài tập harness}; CR production còn partial. Điều kiện trước merge: review nhóm, adapter persistence transactional, tích hợp context đã xác thực và kiểm tra hai process/crash. Chưa chạy root npm test/browser E2E vì không sửa các thành phần đó; suite Python được chạy bằng các lệnh ghi ở README, không suy diễn từ test Node.
+
+\textbf{Evidence truy cập được:} \fref{experiments/vt002/README.md}{README chạy lại}; \fref{docs/plans/2026-11-08/vt002-idempotency.md}{plan}; \fref{experiments/vt002/test_idempotency.py}{test source}; \fref{experiments/vt002/evidence/green.log}{GREEN log}; \fref{experiments/vt002/evidence/mutation.log}{mutation log}; \fref{experiments/vt002/evidence/coverage.json}{coverage}; \fref{experiments/vt002/evidence/load.json}{load samples}; \fref{docs/reports/2026-11-08/2026-11-08-vt002-test-review.md}{test/review report}.
+
+\newpage
+% ==================== TRANG CHINH 8 ====================
+\section{Reflection và cách tái lập}
+% REFLECTION-BEGIN
+Điều làm tôi tăng confidence là sự liên kết giữa contract, lỗi quan sát được và kiểm tra hồi quy. Log RED cho thấy hai lần gửi nhận message ID khác nhau, nên failure có ý nghĩa hơn lỗi import hoặc thiếu thư viện. Sau patch, test không chỉ đếm response thành công mà còn kiểm tra số bản ghi, số phép tính và snapshot. Mutation ở đúng biên 4000 bị phát hiện giúp xác nhận oracle thực sự phân biệt hành vi đúng với sai.
+
+Tôi cũng nhận ra coverage cao không thay thế phân tích risk. Lần đo đầu thiếu đường xung đột khi request còn pending; bổ sung T21 làm rõ một tình huống nghiệp vụ cụ thể. Năm thứ tự chạy đều pass và việc dùng Event thay sleep tăng confidence về khả năng tái lập. Tuy nhiên, các phép thử vẫn chạy với repository trong bộ nhớ. Chúng chưa chứng minh tính atomic của transaction thật, quyền truy cập qua gateway, khả năng phục hồi khi process chết hoặc chi phí gọi provider bị nhân đôi.
+
+Kết quả tải thấp hơn năm giây chỉ phản ánh fixture mô phỏng. Tôi không thể dùng vài mili giây đó để kết luận hệ thống RAG đáp ứng production SLO. Test tiếp theo có giá trị cao nhất là chạy hai process với cùng database, gửi cùng key, rồi làm process dừng giữa ghi message và lưu replay record. Tôi sẽ yêu cầu chỉ tồn tại một kết quả đã commit, retry trả đúng ID và không rò dữ liệu chéo tenant. Sau đó mới đo tải HTTP với backend giả có độ trễ điều khiển, lưu cả lỗi và tail latency. Cách tiếp cận này biến giới hạn hiện tại thành bước kiểm chứng rõ ràng thay vì dùng AI hoặc phần trăm coverage làm bảo chứng.
+% REFLECTION-END
+
+\textbf{Lệnh chạy lại tại gốc repository:}
+\begin{Code}
+python experiments/vt002/run.py --phase green
+python experiments/vt002/pairwise.py
+python experiments/vt002/verify.py
+python experiments/vt002/load.py
+# Optional test tooling, not a runtime dependency:
+python -m pip install coverage==7.13.1
+python experiments/vt002/verify.py
+\end{Code}
+\textbf{RED và mutation:} README hướng dẫn tạo scratch worktree tại d51ebc0 hoặc 1f4fc75; mutation diff được apply ở scratch, không apply vào nhánh nộp bài. Wrapper RED/mutation xác nhận child test phải fail bằng assertion. Với GREEN, child exit phải bằng 0.
+
+\textbf{Nguồn đối chiếu baseline:} \href{\Repo/blob/\Base/services/chat-service/app/api/controllers/chat_controller.py}{Chat controller}; \href{\Repo/blob/\Base/services/chat-service/app/schemas/chat/request.py}{request schema}; \href{\Repo/blob/\Base/services/chat-service/app/repositories/postgres/message_repository.py}{Postgres repository}; \href{\Repo/blob/\Base/services/tenant-service/services/quota.service.ts}{quota service}. Hai snapshot cũ/mới được phân biệt bằng commit, không mô tả repo hiện tại chỉ dựa trên bài trước.
+
+\textbf{Trạng thái nộp:} branch phục vụ review, chưa merge. Bản reflection và toàn bộ báo cáo được AI hỗ trợ soạn theo bằng chứng phiên làm việc; sinh viên phải đọc, đối chiếu trải nghiệm và chịu trách nhiệm trước khi nộp.
+
+\textbf{Tên PDF:} \mbox{\texttt{BT3\_23001928\_VT-002.pdf}}.
+
+\clearpage
+\appendix
+\pagenumbering{roman}
+\section{AI Usage Log -- không tính giới hạn nội dung chính}
+\textbf{Công cụ:} Codex trong phiên làm việc 08/11/2026; không gọi API LLM trả phí để tạo dữ liệu test. AI hỗ trợ toàn bộ plan, code, tests, thực nghiệm, review và bản thảo reflection/LaTeX. Phần kiểm chứng do công cụ thực thi tạo log; không coi output văn bản của AI là bằng chứng correctness.
+
+\begin{tabular}{@{}L{11mm}L{62mm}L{\dimexpr\textwidth-73mm-4\tabcolsep\relax}@{}}
+\toprule
+\textbf{Mục} & \textbf{Prompt / output chính} & \textbf{Giữ / sửa / bác bỏ và evidence}\\\midrule
+A1 & Lập plan idempotency theo repo thật, ghi assumptions trước code. & Giữ harness có ranh giới; bác bỏ dùng Node quota như replay Chat và dùng tracing ID làm key. Plan lưu trước RED commit.\\[4pt]
+A2 & Sinh tests replay, pairwise bốn factor, biên 4000 và failure path. & Giữ covering array 8 hàng; verifier xác nhận 24/24 cặp. W1 status-only sửa bằng equality/count; W2 happy-path trùng bị xóa và thay lịch concurrent/failure.\\[4pt]
+A3 & Tạo patch nhỏ với scoped key, fingerprint, pending task và repository. & Review diff trước GREEN; giữ snapshot/shield; không nối endpoint chưa đủ persistence/auth. Code commit 1f4fc75.\\[4pt]
+A4 & Đổi đúng toán tử biên \(>\) thành \(\geq\), chạy lại suite. & Giữ mutant chỉ trong nhánh tạm 5aec9fc; T13 và bốn pairwise cases phát hiện; diff/log được lưu.\\[4pt]
+A5 & Đo coverage và tìm missing risk, chạy nhiều thứ tự. & Thêm T21 vì pending conflict chưa chạy; 57/57 statements, 18/18 branches, năm order runs pass. Không diễn giải là 100\% correctness.\\[4pt]
+A6 & Đo 200 tác vụ unique/retry và viết báo cáo. & Giữ raw samples; ghi rõ fake RAG/store, p95 chỉ mô phỏng. Reflection là bản thảo AI hỗ trợ, cần sinh viên kiểm tra.\\
+\bottomrule
+\end{tabular}
+
+\textbf{Nháp test yếu và thay đổi (trích).}
+\begin{Code}
+# W1 (weak): assert response["status"] == 200
+# Replaced by:
+assert first == second
+assert backend.calls == 1
+assert repository.commits == 1
+
+# W2 (duplicate): run the same sequential replay under another name.
+# Removed/replaced with event-gated concurrent replay and failure/retry.
+\end{Code}
+\textbf{Lưu ý provenance:} A1--A6 là brief/prompt tác vụ và quyết định của cùng phiên Codex, không phải lời xác nhận người học đã review độc lập. Không sao chép log hay test của thành viên khác; tên file/tài liệu của nhóm chỉ được dùng làm nguồn đối chiếu baseline.
+
+\clearpage
+\section{Trích log thực thi và định danh đầy đủ}
+\begin{Code}
+RED (d51ebc0):
+  exit_code=1
+  Ran 20 tests in 0.975s
+  FAILED (failures=27, errors=2)
+  T01: message-0001 != message-0002
+
+GREEN final (3627038):
+  exit_code=0
+  Ran 21 tests in 1.296s
+  OK
+
+MUTATION (5aec9fc, parent 1f4fc75):
+  len(question) > MAX_QUESTION_LENGTH
+    -> len(question) >= MAX_QUESTION_LENGTH
+  T13 length=4000: AssertionError: 400 != 200
+  Ran 20 tests in 1.208s
+  FAILED (failures=6)
+
+COVERAGE (coordinator only):
+  Stmts=57 Miss=0 Branch=18 BrPart=0 Cover=100%
+ORDER:
+  seed 0,1,2,3,4 -> exit_code=0 each
+PAIRWISE:
+  8 rows; 4 binary factors; all 24 factor/value pairs covered
+LOAD (p95 nearest rank):
+  unique: n=200 peak=200 commits=200 p95_ms=4.6169
+  replay: n=200 peak=200 commits=1   p95_ms=1.8964
+\end{Code}
+
+\textbf{Các commit:}
+\begin{itemize}
+\item Baseline: \code{8aaceec1c4d4958e69536c622ad78dc58825ad29}.
+\item RED: \code{d51ebc03bd747a35a428dc40cf6d491541fcdcbf}.
+\item Code GREEN: \code{1f4fc75c153864d4bec4e544c65761133b4b306a}.
+\item Evidence/suite cuối: \code{362703817e2d01a7915a076b954fcbf3038771b5}.
+\item Mutant tạm: \code{5aec9fc3b6b1fcb5c7ef6a2ca49b5017e9c28625} (không nằm trong branch nộp).
+\end{itemize}
+Log đầy đủ và mẫu latency nằm trong branch, không dùng ảnh chụp thay code. Các thời gian trên là số đo của phiên đã lưu; chạy lại có thể khác do máy và scheduler. Mọi nội dung về production DB, auth, browser E2E và process crash vẫn là giới hạn được công khai.
+\end{document}

@@ -1,0 +1,13 @@
+{
+  "compiler": "Tectonic 0.17.0 (XeTeX)",
+  "pages_total": 10,
+  "main_pages": 8,
+  "appendix_pages": 2,
+  "reflection_word_count": 310,
+  "content_overfull_boxes": 0,
+  "rendered_and_visually_checked_pages": 10,
+  "sha256": {
+    "BT3_23001928_VT-002.pdf": "e83e10a5c7661a9034d40317901fe9429c77225b94818dfad9a6abb533be7261",
+    "main.tex": "857d2c93928c1bc758a23d3a070fe893c8954b83e4d136742fd0867c9c17acd9"
+  }
+}
