@@ -1,0 +1,537 @@
+phase=red
+command=C:\Users\ASUS\AppData\Local\Programs\Python\Python313\python.exe -m unittest discover -s experiments/vt002 -p test_*.py -v
+exit_code=1
+test_T01_pairwise_0000 (test_idempotency.IdempotencyTests.test_T01_pairwise_0000) ... FAIL
+test_T02_pairwise_0011 (test_idempotency.IdempotencyTests.test_T02_pairwise_0011) ... FAIL
+test_T03_pairwise_0101 (test_idempotency.IdempotencyTests.test_T03_pairwise_0101) ... FAIL
+test_T04_pairwise_0110 (test_idempotency.IdempotencyTests.test_T04_pairwise_0110) ... FAIL
+test_T05_pairwise_1001 (test_idempotency.IdempotencyTests.test_T05_pairwise_1001) ... FAIL
+test_T06_pairwise_1010 (test_idempotency.IdempotencyTests.test_T06_pairwise_1010) ... FAIL
+test_T07_pairwise_1100 (test_idempotency.IdempotencyTests.test_T07_pairwise_1100) ... FAIL
+test_T08_pairwise_1111 (test_idempotency.IdempotencyTests.test_T08_pairwise_1111) ... FAIL
+test_T09_conflicting_question_is_409_without_write (test_idempotency.IdempotencyTests.test_T09_conflicting_question_is_409_without_write) ... FAIL
+test_T10_all_semantic_payload_fields_are_fingerprinted (test_idempotency.IdempotencyTests.test_T10_all_semantic_payload_fields_are_fingerprinted) ... 
+  test_T10_all_semantic_payload_fields_are_fingerprinted (test_idempotency.IdempotencyTests.test_T10_all_semantic_payload_fields_are_fingerprinted) (changed={'conversation_id': 'conversation-B'}) ... FAIL
+  test_T10_all_semantic_payload_fields_are_fingerprinted (test_idempotency.IdempotencyTests.test_T10_all_semantic_payload_fields_are_fingerprinted) (changed={'include_personal_docs': True}) ... FAIL
+test_T10_all_semantic_payload_fields_are_fingerprinted (test_idempotency.IdempotencyTests.test_T10_all_semantic_payload_fields_are_fingerprinted) ... FAIL
+test_T11_key_is_scoped_by_tenant_user_and_course (test_idempotency.IdempotencyTests.test_T11_key_is_scoped_by_tenant_user_and_course) ... FAIL
+test_T12_invalid_keys_do_not_invoke_backend (test_idempotency.IdempotencyTests.test_T12_invalid_keys_do_not_invoke_backend) ... ok
+test_T13_question_length_boundaries (test_idempotency.IdempotencyTests.test_T13_question_length_boundaries) ... FAIL
+test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) ... 
+  test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (payload=None) ... ERROR
+  test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (payload=[]) ... ERROR
+  test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (payload={'question': 'Q', 'conversation_id': 7}) ... FAIL
+  test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (payload={'question': 'Q', 'include_personal_docs': 'true'}) ... FAIL
+  test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (payload={'question': 'Q', 'unrecognized': True}) ... FAIL
+  test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (scope=()) ... FAIL
+  test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (scope=('tenant', 'user')) ... FAIL
+  test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (scope=('tenant', '', 'course')) ... FAIL
+test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) ... FAIL
+test_T15_failure_before_commit_then_retry (test_idempotency.IdempotencyTests.test_T15_failure_before_commit_then_retry) ... FAIL
+test_T16_lost_response_replays_after_new_coordinator (test_idempotency.IdempotencyTests.test_T16_lost_response_replays_after_new_coordinator) ... FAIL
+test_T17_two_coordinators_share_unique_repository (test_idempotency.IdempotencyTests.test_T17_two_coordinators_share_unique_repository) ... FAIL
+test_T18_cancelled_waiter_does_not_cancel_shared_work (test_idempotency.IdempotencyTests.test_T18_cancelled_waiter_does_not_cancel_shared_work) ... FAIL
+test_T19_two_hundred_inflight_replays_commit_once (test_idempotency.IdempotencyTests.test_T19_two_hundred_inflight_replays_commit_once) ... Executing <Task pending name='Task-104' coro=<IdempotencyTests.test_T19_two_hundred_inflight_replays_commit_once() running at D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py:110> wait_for=<Future pending cb=[Task.task_wakeup()] created at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py:459> cb=[_run_until_complete_cb() at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py:181] created at C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py:100> took 0.199 seconds
+FAIL
+test_T20_input_and_output_are_isolated_snapshots (test_idempotency.IdempotencyTests.test_T20_input_and_output_are_isolated_snapshots) ... FAIL
+
+======================================================================
+ERROR: test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (payload=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 65, in test_T14_invalid_payload_and_scope_do_not_write
+    self.assertEqual((await self.api.post(SCOPE, "key", payload))["status"], 400)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\support.py", line 73, in post
+    result = await self.coordinator.execute(scope, key, payload)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\SE-BTTL\repo-evidence\services\chat-service\app\services\idempotency.py", line 23, in execute
+    question = payload.get("question")
+               ^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'get'
+
+======================================================================
+ERROR: test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (payload=[])
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 65, in test_T14_invalid_payload_and_scope_do_not_write
+    self.assertEqual((await self.api.post(SCOPE, "key", payload))["status"], 400)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\support.py", line 73, in post
+    result = await self.coordinator.execute(scope, key, payload)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\SE-BTTL\repo-evidence\services\chat-service\app\services\idempotency.py", line 23, in execute
+    question = payload.get("question")
+               ^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'get'
+
+======================================================================
+FAIL: test_T01_pairwise_0000 (test_idempotency.IdempotencyTests.test_T01_pairwise_0000)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 145, in check
+    self.assertEqual(first, second)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: {'sta[41 chars]e-0001', 'answer': 'Q', 'citations': [{'docume[22 chars]'}]}} != {'sta[41 chars]e-0002', 'answer': 'Q', 'citations': [{'docume[22 chars]'}]}}
+  {'body': {'answer': 'Q',
+            'citations': [{'document_id': 'synthetic-doc'}],
+-           'message_id': 'message-0001'},
+?                                     ^
+
++           'message_id': 'message-0002'},
+?                                     ^
+
+   'status': 200}
+
+======================================================================
+FAIL: test_T02_pairwise_0011 (test_idempotency.IdempotencyTests.test_T02_pairwise_0011)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 145, in check
+    self.assertEqual(first, second)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: {'sta[41 chars]e-0001', 'answer': 'Q', 'citations': [{'docume[22 chars]'}]}} != {'sta[41 chars]e-0002', 'answer': 'Q', 'citations': [{'docume[22 chars]'}]}}
+  {'body': {'answer': 'Q',
+            'citations': [{'document_id': 'synthetic-doc'}],
+-           'message_id': 'message-0001'},
+?                                     ^
+
++           'message_id': 'message-0002'},
+?                                     ^
+
+   'status': 200}
+
+======================================================================
+FAIL: test_T03_pairwise_0101 (test_idempotency.IdempotencyTests.test_T03_pairwise_0101)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 145, in check
+    self.assertEqual(first, second)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: {'sta[41 chars]e-0001', 'answer': 'QQQQQQQQQQQQQQQQQQQQQQQQQQ[4021 chars]'}]}} != {'sta[41 chars]e-0002', 'answer': 'QQQQQQQQQQQQQQQQQQQQQQQQQQ[4021 chars]'}]}}
+Diff is 4273 characters long. Set self.maxDiff to None to see it.
+
+======================================================================
+FAIL: test_T04_pairwise_0110 (test_idempotency.IdempotencyTests.test_T04_pairwise_0110)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 145, in check
+    self.assertEqual(first, second)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: {'sta[41 chars]e-0001', 'answer': 'QQQQQQQQQQQQQQQQQQQQQQQQQQ[4021 chars]'}]}} != {'sta[41 chars]e-0002', 'answer': 'QQQQQQQQQQQQQQQQQQQQQQQQQQ[4021 chars]'}]}}
+Diff is 4273 characters long. Set self.maxDiff to None to see it.
+
+======================================================================
+FAIL: test_T05_pairwise_1001 (test_idempotency.IdempotencyTests.test_T05_pairwise_1001)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 145, in check
+    self.assertEqual(first, second)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: {'sta[41 chars]e-0001', 'answer': 'Q', 'citations': [{'docume[22 chars]'}]}} != {'sta[41 chars]e-0002', 'answer': 'Q', 'citations': [{'docume[22 chars]'}]}}
+  {'body': {'answer': 'Q',
+            'citations': [{'document_id': 'synthetic-doc'}],
+-           'message_id': 'message-0001'},
+?                                     ^
+
++           'message_id': 'message-0002'},
+?                                     ^
+
+   'status': 200}
+
+======================================================================
+FAIL: test_T06_pairwise_1010 (test_idempotency.IdempotencyTests.test_T06_pairwise_1010)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 145, in check
+    self.assertEqual(first, second)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: {'sta[41 chars]e-0001', 'answer': 'Q', 'citations': [{'docume[22 chars]'}]}} != {'sta[41 chars]e-0002', 'answer': 'Q', 'citations': [{'docume[22 chars]'}]}}
+  {'body': {'answer': 'Q',
+            'citations': [{'document_id': 'synthetic-doc'}],
+-           'message_id': 'message-0001'},
+?                                     ^
+
++           'message_id': 'message-0002'},
+?                                     ^
+
+   'status': 200}
+
+======================================================================
+FAIL: test_T07_pairwise_1100 (test_idempotency.IdempotencyTests.test_T07_pairwise_1100)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 145, in check
+    self.assertEqual(first, second)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: {'sta[41 chars]e-0001', 'answer': 'QQQQQQQQQQQQQQQQQQQQQQQQQQ[4021 chars]'}]}} != {'sta[41 chars]e-0002', 'answer': 'QQQQQQQQQQQQQQQQQQQQQQQQQQ[4021 chars]'}]}}
+Diff is 4273 characters long. Set self.maxDiff to None to see it.
+
+======================================================================
+FAIL: test_T08_pairwise_1111 (test_idempotency.IdempotencyTests.test_T08_pairwise_1111)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 145, in check
+    self.assertEqual(first, second)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: {'sta[41 chars]e-0001', 'answer': 'QQQQQQQQQQQQQQQQQQQQQQQQQQ[4021 chars]'}]}} != {'sta[41 chars]e-0002', 'answer': 'QQQQQQQQQQQQQQQQQQQQQQQQQQ[4021 chars]'}]}}
+Diff is 4273 characters long. Set self.maxDiff to None to see it.
+
+======================================================================
+FAIL: test_T09_conflicting_question_is_409_without_write (test_idempotency.IdempotencyTests.test_T09_conflicting_question_is_409_without_write)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 20, in test_T09_conflicting_question_is_409_without_write
+    self.assertEqual(result, {"status": 409, "code": "KEY_CONFLICT"})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'status': 200, 'body': {'message_id': 'message-0002[70 chars]'}]}} != {'status': 409, 'code': 'KEY_CONFLICT'}
++ {'code': 'KEY_CONFLICT', 'status': 409}
+- {'body': {'answer': 'different',
+-           'citations': [{'document_id': 'synthetic-doc'}],
+-           'message_id': 'message-0002'},
+-  'status': 200}
+
+======================================================================
+FAIL: test_T10_all_semantic_payload_fields_are_fingerprinted (test_idempotency.IdempotencyTests.test_T10_all_semantic_payload_fields_are_fingerprinted) (changed={'conversation_id': 'conversation-B'})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 29, in test_T10_all_semantic_payload_fields_are_fingerprinted
+    self.assertEqual(result["status"], 409)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 409
+
+======================================================================
+FAIL: test_T10_all_semantic_payload_fields_are_fingerprinted (test_idempotency.IdempotencyTests.test_T10_all_semantic_payload_fields_are_fingerprinted) (changed={'include_personal_docs': True})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 29, in test_T10_all_semantic_payload_fields_are_fingerprinted
+    self.assertEqual(result["status"], 409)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 409
+
+======================================================================
+FAIL: test_T10_all_semantic_payload_fields_are_fingerprinted (test_idempotency.IdempotencyTests.test_T10_all_semantic_payload_fields_are_fingerprinted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 34, in test_T10_all_semantic_payload_fields_are_fingerprinted
+    self.assertEqual(original, explicit_defaults)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'sta[41 chars]e-0001', 'answer': 'Q', 'citations': [{'docume[22 chars]'}]}} != {'sta[41 chars]e-0002', 'answer': 'Q', 'citations': [{'docume[22 chars]'}]}}
+  {'body': {'answer': 'Q',
+            'citations': [{'document_id': 'synthetic-doc'}],
+-           'message_id': 'message-0001'},
+?                                     ^
+
++           'message_id': 'message-0002'},
+?                                     ^
+
+   'status': 200}
+
+======================================================================
+FAIL: test_T11_key_is_scoped_by_tenant_user_and_course (test_idempotency.IdempotencyTests.test_T11_key_is_scoped_by_tenant_user_and_course)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 43, in test_T11_key_is_scoped_by_tenant_user_and_course
+    self.assertEqual((len(self.repo.rows), self.repo.commits), (4, 4))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (0, 0) != (4, 4)
+
+First differing element 0:
+0
+4
+
+- (0, 0)
++ (4, 4)
+
+======================================================================
+FAIL: test_T13_question_length_boundaries (test_idempotency.IdempotencyTests.test_T13_question_length_boundaries)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 57, in test_T13_question_length_boundaries
+    self.assertEqual(self.repo.commits, 3)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 3
+
+======================================================================
+FAIL: test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (payload={'question': 'Q', 'conversation_id': 7})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 65, in test_T14_invalid_payload_and_scope_do_not_write
+    self.assertEqual((await self.api.post(SCOPE, "key", payload))["status"], 400)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 400
+
+======================================================================
+FAIL: test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (payload={'question': 'Q', 'include_personal_docs': 'true'})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 65, in test_T14_invalid_payload_and_scope_do_not_write
+    self.assertEqual((await self.api.post(SCOPE, "key", payload))["status"], 400)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 400
+
+======================================================================
+FAIL: test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (payload={'question': 'Q', 'unrecognized': True})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 65, in test_T14_invalid_payload_and_scope_do_not_write
+    self.assertEqual((await self.api.post(SCOPE, "key", payload))["status"], 400)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 400
+
+======================================================================
+FAIL: test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (scope=())
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 68, in test_T14_invalid_payload_and_scope_do_not_write
+    self.assertEqual((await self.api.post(scope, "key", BODY))["status"], 400)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 400
+
+======================================================================
+FAIL: test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (scope=('tenant', 'user'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 68, in test_T14_invalid_payload_and_scope_do_not_write
+    self.assertEqual((await self.api.post(scope, "key", BODY))["status"], 400)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 400
+
+======================================================================
+FAIL: test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write) (scope=('tenant', '', 'course'))
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 68, in test_T14_invalid_payload_and_scope_do_not_write
+    self.assertEqual((await self.api.post(scope, "key", BODY))["status"], 400)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 200 != 400
+
+======================================================================
+FAIL: test_T14_invalid_payload_and_scope_do_not_write (test_idempotency.IdempotencyTests.test_T14_invalid_payload_and_scope_do_not_write)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 69, in test_T14_invalid_payload_and_scope_do_not_write
+    self.assertEqual((self.backend.calls, self.repo.commits), (0, 0))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (6, 0) != (0, 0)
+
+First differing element 0:
+6
+0
+
+- (6, 0)
+?  ^
+
++ (0, 0)
+?  ^
+
+
+======================================================================
+FAIL: test_T15_failure_before_commit_then_retry (test_idempotency.IdempotencyTests.test_T15_failure_before_commit_then_retry)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 76, in test_T15_failure_before_commit_then_retry
+    self.assertEqual((self.backend.calls, self.repo.commits), (2, 1))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (2, 0) != (2, 1)
+
+First differing element 1:
+0
+1
+
+- (2, 0)
+?     ^
+
++ (2, 1)
+?     ^
+
+
+======================================================================
+FAIL: test_T16_lost_response_replays_after_new_coordinator (test_idempotency.IdempotencyTests.test_T16_lost_response_replays_after_new_coordinator)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 82, in test_T16_lost_response_replays_after_new_coordinator
+    self.assertEqual(replay, lost)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+AssertionError: {'mes[17 chars]e-0002', 'answer': 'Q', 'citations': [{'docume[21 chars]c'}]} != {'mes[17 chars]e-0001', 'answer': 'Q', 'citations': [{'docume[21 chars]c'}]}
+  {'answer': 'Q',
+   'citations': [{'document_id': 'synthetic-doc'}],
+-  'message_id': 'message-0002'}
+?                            ^
+
++  'message_id': 'message-0001'}
+?                            ^
+
+
+======================================================================
+FAIL: test_T17_two_coordinators_share_unique_repository (test_idempotency.IdempotencyTests.test_T17_two_coordinators_share_unique_repository)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 89, in test_T17_two_coordinators_share_unique_repository
+    self.assertEqual(results[0], results[1])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'mes[17 chars]e-0001', 'answer': 'Q', 'citations': [{'docume[21 chars]c'}]} != {'mes[17 chars]e-0002', 'answer': 'Q', 'citations': [{'docume[21 chars]c'}]}
+  {'answer': 'Q',
+   'citations': [{'document_id': 'synthetic-doc'}],
+-  'message_id': 'message-0001'}
+?                            ^
+
++  'message_id': 'message-0002'}
+?                            ^
+
+
+======================================================================
+FAIL: test_T18_cancelled_waiter_does_not_cancel_shared_work (test_idempotency.IdempotencyTests.test_T18_cancelled_waiter_does_not_cancel_shared_work)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 105, in test_T18_cancelled_waiter_does_not_cancel_shared_work
+    self.assertEqual((self.backend.calls, self.repo.commits), (1, 1))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tuples differ: (2, 0) != (1, 1)
+
+First differing element 0:
+2
+1
+
+- (2, 0)
++ (1, 1)
+
+======================================================================
+FAIL: test_T19_two_hundred_inflight_replays_commit_once (test_idempotency.IdempotencyTests.test_T19_two_hundred_inflight_replays_commit_once)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 113, in test_T19_two_hundred_inflight_replays_commit_once
+    self.assertTrue(all(result == results[0] for result in results))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_T20_input_and_output_are_isolated_snapshots (test_idempotency.IdempotencyTests.test_T20_input_and_output_are_isolated_snapshots)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\ASUS\AppData\Local\Programs\Python\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "D:\SE-BTTL\repo-evidence\experiments\vt002\test_idempotency.py", line 124, in test_T20_input_and_output_are_isolated_snapshots
+    self.assertEqual(result["answer"], "original")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'changed' != 'original'
+- changed
++ original
+
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.975s
+
+FAILED (failures=27, errors=2)

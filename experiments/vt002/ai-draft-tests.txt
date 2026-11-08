@@ -1,0 +1,19 @@
+AI generation task brief (Codex, 2026-11-08): Generate replay tests for the
+scoped Chat coordinator, an 8-row binary pairwise design, boundary 4000,
+failure/retry, cancellation and caller-mutation tests without real sleeps.
+
+First draft W1:
+  response = await api.post(request)
+  assert response['status'] == 200
+Review: weak. A 200 response says nothing about duplicate rows/message IDs.
+REPLACED by T01-T08 assertions: both responses equal, operation_calls == 1,
+repository.commits == 1 and exactly one scoped row.
+
+First draft W2:
+  run the sequential happy-path replay twice under two different test names.
+Review: duplicated same schedule, no new risk coverage.
+REMOVED. REPLACED by event-gated concurrent replay and T15 transient failure
+then retry; also assert no row before successful retry.
+
+These are candidate tests produced/reviewed during this AI-assisted session,
+not claims that a human student independently reviewed or authored them.
