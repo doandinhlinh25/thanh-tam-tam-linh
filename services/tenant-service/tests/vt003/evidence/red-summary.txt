@@ -1,0 +1,4 @@
+Command: node --test reviewer.test.cjs
+Exit: 1
+16 tests: 7 pass, 9 fail. VT02: expected 200, actual 403 (reviewer approval denied).
+Root cause: APPROVAL_ROLES = new Set() in RED baseline.

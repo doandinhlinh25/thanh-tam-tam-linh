@@ -1,0 +1,4 @@
+Command: node --test reviewer.test.cjs
+Exit: 0
+16 tests: 16 pass, 0 fail.
+Node native coverage: reviewer-harness.cjs line 97.53%; branch 80.95%; functions 100%.

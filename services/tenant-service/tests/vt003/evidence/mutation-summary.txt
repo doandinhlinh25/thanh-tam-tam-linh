@@ -1,0 +1,4 @@
+Local-only branch temp/vt003-drop-if-match-validation, not pushed.
+Deliberate mutation: If-Match absent defaults version 1, bypassing precondition validation.
+16 tests: 15 pass, 1 fail; VT08 detects mutation (expected HTTP 428; got 200).
+Source restored before submission.
