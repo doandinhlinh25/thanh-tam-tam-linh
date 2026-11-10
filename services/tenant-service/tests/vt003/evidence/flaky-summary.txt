@@ -1,0 +1,4 @@
+10 sequential independent reruns: each 16 passed, 0 failed.
+Risk 1: time/random data: no wall-clock assertions, no sleeps, deterministic fixtures.
+Risk 2: order/shared state/network: isolated maps and ephemeral localhost listener; no external network.
+Unproven: multi-host scheduling and real database under contention.

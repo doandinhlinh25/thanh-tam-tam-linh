@@ -2,7 +2,7 @@
 /** VT-003 executable contract probe; NOT wired to live Mongo/tenant-service. */
 const http = require('node:http');
 
-const APPROVAL_ROLES = new Set(); // RED baseline: reviewer not yet supported.
+const APPROVAL_ROLES = new Set(['reviewer']); // VT-003: only reviewers may approve.
 const WRITE_ROLES = new Set(['tenant_owner', 'tenant_admin', 'lecturer']);
 const READ_ROLES = new Set(['tenant_owner', 'tenant_admin', 'lecturer', 'student', 'reviewer']);
 

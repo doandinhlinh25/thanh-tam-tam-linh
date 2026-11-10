@@ -1,0 +1,2 @@
+# Human diff review
+RED -> GREEN only changes APPROVAL_ROLES from empty to reviewer. No external dependency or existing module modified. Authorization still derives actor from fixture server-side; tenant scoping occurs before read/write; 428 on missing version, 409 stale; approval ledger independent of frozen source. This is a deliberately thin executable contract probe, not production. A fake in-memory CAS can never validate multi-process Mongo atomicity.
