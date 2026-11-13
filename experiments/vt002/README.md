@@ -115,3 +115,6 @@ All 10 pages were rendered and visually checked; no content overfull-box or
 missing-character warnings remain. The reflection has 310 whitespace-separated
 Vietnamese words. `evidence/report-validation.json` records file hashes and
 scope; the report is an AI-assisted draft for the student's final review.
+Pre-submission PDF review on 2026-11-13 clarified the pseudocode excerpt and
+planned E2E case E01 (not run and not counted among the 21 executed tests).
+Recorded functional and load measurements remain from 2026-11-08.

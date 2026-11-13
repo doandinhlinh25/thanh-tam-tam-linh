@@ -7,7 +7,14 @@
   "content_overfull_boxes": 0,
   "rendered_and_visually_checked_pages": 10,
   "sha256": {
-    "BT3_23001928_VT-002.pdf": "e83e10a5c7661a9034d40317901fe9429c77225b94818dfad9a6abb533be7261",
-    "main.tex": "857d2c93928c1bc758a23d3a070fe893c8954b83e4d136742fd0867c9c17acd9"
-  }
+    "BT3_23001928_VT-002.pdf": "f1467f44942f975b75c9b46b73e8f7cf9f887d6cde29bd1133d7ed915a84d66b",
+    "main.tex": "19f6cba2a2c4fd8be7b1b15908ab02ccb8d16dc6cc5c7573157168ce6209c741"
+  },
+  "last_pdf_review": "2026-11-13",
+  "document_only_changes": [
+    "Clarified pseudocode excerpt",
+    "Added planned E2E E01, explicitly not executed",
+    "Updated AI usage log review date"
+  ],
+  "functional_measurements_date": "2026-11-08"
 }

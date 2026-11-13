@@ -132,6 +132,8 @@ E2E thật & Hoãn browser/gateway/auth/DB/LLM; bước tiếp theo có giá tr�
 \bottomrule
 \end{tabular}
 
+\textbf{E01 -- E2E dự kiến, chưa chạy (ngoài 21 test đã thực thi).} Người học đăng nhập, chọn môn có quyền, gửi câu hỏi; giả lập mất phản hồi sau commit rồi gửi lại cùng key. Kiểm tra UI chỉ hiện một tin nhắn, API trả cùng message ID, DB chỉ có một message và tài khoản khác không đọc được kết quả. Điều kiện chạy: auth/gateway, Chat persistence và UI được nối đầy đủ.
+
 \textbf{Không cần trong patch này:} test giao diện không thay đổi, gọi internet thật trong mỗi unit test, hoặc lặp happy path chỉ đổi tên test. Negative cases được tách khỏi covering array hợp lệ để có oracle rõ cho 400/409; failure path T15 dùng exception được điều khiển, không dùng network outage ngẫu nhiên.
 
 \newpage
@@ -220,7 +222,7 @@ Mutation tạm & \code{5aec9fc} & Nhánh/worktree riêng, cha là 1f4fc75; khôn
 \end{tabular}
 Số lỗi RED lớn hơn số method vì unittest đếm từng subtest. Các lỗi duplicate ID và tăng backend call chứng minh fail đúng hành vi; hai lỗi input sai cũng được giữ nguyên trong log, không che đi. Không có import/dependency error làm lý do RED.
 
-\textbf{Patch nhỏ và review diff.} Thêm module 89 dòng, 57 executable statements; không sửa controller/schema production. Luồng chính:
+\textbf{Patch nhỏ và review diff.} Thêm module 89 dòng, 57 executable statements; không sửa controller/schema production. Dưới đây là \textbf{mã giả rút gọn minh họa luồng}, không phải đoạn chạy độc lập; mã đầy đủ ở \code{services/chat-service/app/services/idempotency.py}:
 \begin{Code}
 scoped_key, fingerprint, snapshot = normalize(scope, key, payload)
 async with self._lock:
@@ -342,7 +344,7 @@ python experiments/vt002/verify.py
 \appendix
 \pagenumbering{roman}
 \section{AI Usage Log -- không tính giới hạn nội dung chính}
-\textbf{Công cụ:} Codex trong phiên làm việc 08/11/2026; không gọi API LLM trả phí để tạo dữ liệu test. AI hỗ trợ toàn bộ plan, code, tests, thực nghiệm, review và bản thảo reflection/LaTeX. Phần kiểm chứng do công cụ thực thi tạo log; không coi output văn bản của AI là bằng chứng correctness.
+\textbf{Công cụ:} Codex trong phiên làm việc 08/11/2026; rà soát và biên tập PDF ngày 13/11/2026. Không gọi API LLM trả phí để tạo dữ liệu test. AI hỗ trợ toàn bộ plan, code, tests, thực nghiệm, review và bản thảo reflection/LaTeX. Lần rà soát bổ sung E01 ở mức kế hoạch và nhãn mã giả; không chạy lại hay thay số liệu thực nghiệm ngày 08/11. Phần kiểm chứng do công cụ thực thi tạo log; không coi output văn bản của AI là bằng chứng correctness.
 
 \begin{tabular}{@{}L{11mm}L{62mm}L{\dimexpr\textwidth-73mm-4\tabcolsep\relax}@{}}
 \toprule

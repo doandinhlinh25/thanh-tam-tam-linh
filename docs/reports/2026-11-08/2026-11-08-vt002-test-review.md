@@ -59,3 +59,12 @@ reviews real DB transactions/auth integration and executes the missing tests.
 Root npm test and browser E2E were not run: no Node/UI changes and not evidence
 for this pure-Python slice. No Lecture 06/07 slides were supplied; no invented
 slide references are included.
+
+## Pre-submission PDF review, 2026-11-13
+Rechecked the named PDF, all 8 main pages and 2 appendix pages, the 310-word
+reflection, embedded links and recorded test evidence. GitHub's branch API and
+ls-remote confirmed the published branch. No new functional test result is claimed.
+Two document-only clarifications: label the shortened code excerpt as pseudocode,
+and specify planned E2E scenario E01 with prerequisites and explicit NOT RUN
+status, outside the 21 executed tests. Execution measurements remain dated
+2026-11-08. No implementation, test input, oracle or production integration changed.
