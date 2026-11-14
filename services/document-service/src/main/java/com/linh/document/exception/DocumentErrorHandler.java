@@ -78,6 +78,12 @@ public class DocumentErrorHandler {
         return failure(HttpStatus.INTERNAL_SERVER_ERROR, INTERNAL_CODE, INTERNAL_MESSAGE);
     }
 
+    /** Map persistence failures without exposing server addresses or credentials. */
+    @ExceptionHandler(org.springframework.dao.DataAccessException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePersistence(org.springframework.dao.DataAccessException error) {
+        return failure(HttpStatus.SERVICE_UNAVAILABLE, "DOCUMENT_DEPENDENCY_UNAVAILABLE", "Document storage is not ready");
+    }
+
     private ResponseEntity<ApiResponse<Void>> failure(HttpStatus status, String code, String message) {
         ApiResponse.ApiError details = new ApiResponse.ApiError(code, message, Map.of());
         return ResponseEntity.status(status).body(ApiResponse.failure(details));
