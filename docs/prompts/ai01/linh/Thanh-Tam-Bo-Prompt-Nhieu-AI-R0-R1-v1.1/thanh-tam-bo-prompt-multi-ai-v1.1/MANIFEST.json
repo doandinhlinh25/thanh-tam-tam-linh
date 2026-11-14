@@ -1,0 +1,75 @@
+{
+  "version": "1.1",
+  "repo": "https://github.com/doandinhlinh25/thanh-tam-tam-linh",
+  "baseline": "6663a36b2c1ddb2cdfaee7ce7bfff55e33bc1d2b",
+  "target": "reference/Thanh-Tam-Tai-Lieu-Tong-Hop-BRD-Kien-Truc-V4.md",
+  "rules": [
+    "existing functionality only",
+    "file ownership",
+    "one stage per turn",
+    "explicit approval before COOK and production migration",
+    "no auto commit/push/merge"
+  ],
+  "waves": {
+    "R0": "existing behavior fixes, security, tests",
+    "R1": "approved migration of already implemented Auth/Tenant DB access and Document upload persistence only"
+  },
+  "prompts": [
+    {
+      "file": "R0-on-dinh-hien-trang/P01-auth-prompt-v1.0.md",
+      "sha256": "098e29e85b035d2b1ba79bc09979c74172758d4aea69eac433ac649a7432651b"
+    },
+    {
+      "file": "R0-on-dinh-hien-trang/P02-tenant-prompt-v1.0.md",
+      "sha256": "c88be933c223bcaa81a47a681126f989369d6909d97c8e9b7e00d60f90561044"
+    },
+    {
+      "file": "R0-on-dinh-hien-trang/P03-document-prompt-v1.0.md",
+      "sha256": "e2f845c6416db9d28d394a58e29a985afcf05e43f406ba11fe2ae877415ecaca"
+    },
+    {
+      "file": "R0-on-dinh-hien-trang/P04-chat-prompt-v1.0.md",
+      "sha256": "5f03c1da7de26f57b518df404510c59ee2a56bddea7e9cad74597680a0f08204"
+    },
+    {
+      "file": "R0-on-dinh-hien-trang/P05-frontend-prompt-v1.0.md",
+      "sha256": "c77acb71261ec0003cb89442f9562aba49b993be918ee50f8caf1f9d01d1e2c2"
+    },
+    {
+      "file": "R0-on-dinh-hien-trang/P06-gateway-prompt-v1.0.md",
+      "sha256": "9c1fc16f4c06c429d2f1108949634f028438ff2373e2ff9cbdf16d3f196780d1"
+    },
+    {
+      "file": "R0-on-dinh-hien-trang/P07-shared-prompt-v1.0.md",
+      "sha256": "d748596452dcab60b57462c662c5cef51e3bde4ecfc815bb36fd3c90539e96ff"
+    },
+    {
+      "file": "R0-on-dinh-hien-trang/P08-sandbox-prompt-v1.0.md",
+      "sha256": "81f5cc0594ebdf90a0257517466baf9457675a17a0b8cc903dc3691579aa603a"
+    },
+    {
+      "file": "R0-on-dinh-hien-trang/P09-skeletons-prompt-v1.0.md",
+      "sha256": "be2c5fb8d36adaf5cb05cf804ae093797afb8b88422b32216e5f545706a8f9d7"
+    },
+    {
+      "file": "R0-on-dinh-hien-trang/P10-coordinator-readonly-v1.0.md",
+      "sha256": "7a08796f2bead55015a109487a77ec8e53d14ac9467aa89e0cf7c108c271a7dd"
+    },
+    {
+      "file": "R1-chuyen-doi-phan-da-lam/M01-mongodb-quyen-db-auth-tenant-prompt-v1.1.md",
+      "sha256": "b5c22c76f97926bedb408be609b6e3820718f4788c3dfb60fcd0412b6e0029ef"
+    },
+    {
+      "file": "R1-chuyen-doi-phan-da-lam/M02-document-upload-mongo-prompt-v1.1.md",
+      "sha256": "2e44e2d41224adfab360c5456ecce75bee3e607097293c4881d02a2997d49a5f"
+    },
+    {
+      "file": "R1-chuyen-doi-phan-da-lam/M03-sandbox-mongodb-document-e2e-prompt-v1.1.md",
+      "sha256": "f581fd9c3a165d13a16b16e8a965fc62e85c76cbf71091a780c968c3d569e7c0"
+    },
+    {
+      "file": "R1-chuyen-doi-phan-da-lam/M04-review-doc-architecture-status-prompt-v1.1.md",
+      "sha256": "93a83c24e91ccc046b132e2369a4ce0f24c4f80129fade4589c652bf67c76edd"
+    }
+  ]
+}
