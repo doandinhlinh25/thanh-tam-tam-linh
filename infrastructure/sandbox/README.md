@@ -1,6 +1,6 @@
 # Môi trường thử Auth / Tenant / Document
 
-Bộ Compose riêng cho Auth, Tenant, Document Java 21, MongoDB replica set, PostgreSQL, Redis và MinIO (S3 compatible). Không dùng network saas-gateway, database, volume hoặc token của môi trường đang chạy.
+Bộ Compose riêng cho Auth, Tenant, Document Java 21, MongoDB replica set, Redis và MinIO (S3 compatible). Không dùng network saas-gateway, database, volume hoặc token của môi trường đang chạy.
 
 ## Khởi động
 
@@ -18,7 +18,7 @@ npm run sandbox:smoke
 
 sandbox:init sinh infrastructure/sandbox/.env với secret ngẫu nhiên riêng, giữ nguyên file nếu đã tồn tại. File mẫu chỉ chứa tên biến. Không lấy hoặc sửa .env của các service. AUTH_TENANT_TOKEN được truyền chung cho Auth/Tenant; DOCUMENT_SERVICE_TOKEN được truyền chung cho Tenant/Document. JWT_SECRET chỉ cấp cho Auth. CHAT_SERVICE_TOKEN là token riêng được dành cho API Chat của Tenant.
 
-Cả bộ dùng project name cố định saas-auth-tenant-document-test. MongoDB, PostgreSQL và Redis chỉ nằm trên mạng internal; Auth, Tenant, Document và MinIO có thêm mạng access để Docker publish cổng trên host. Các database không publish cổng. Mặc định các cổng chỉ bind 127.0.0.1:
+Cả bộ dùng project name cố định saas-auth-tenant-document-test. MongoDB và Redis chỉ nằm trên mạng internal; Auth, Tenant, Document và MinIO có thêm mạng access để Docker publish cổng trên host. Các database không publish cổng. Mặc định các cổng chỉ bind 127.0.0.1:
 
 | Thành phần | URL |
 | --- | --- |
@@ -30,15 +30,15 @@ Cả bộ dùng project name cố định saas-auth-tenant-document-test. MongoD
 
 Có thể đổi các biến *_PORT trong .env nếu cổng đang được dùng. Tài khoản Super Admin và tài khoản MinIO nằm trong .env riêng này; công cụ không in mật khẩu/token. Dùng localhost và môi trường HTTP thử, NODE_ENV=test để cookie không yêu cầu HTTPS. Không dùng bộ Compose này làm cấu hình production.
 
-MongoDB khởi tạo root account và single-node replica set sandbox-rs; Auth/Tenant dùng hai database auth_sandbox và tenant_sandbox. PostgreSQL tự áp dụng schema upload khi volume còn mới. MinIO tạo bucket document-sandbox-private, tắt truy cập anonymous. Redis bật mật khẩu và AOF. Dữ liệu lưu trong volume được Compose đặt tên theo project riêng.
+MongoDB có replica set sandbox-rs và ba DB auth_sandbox, tenant_sandbox, document_sandbox. Root chỉ dùng bootstrap; từng runtime có user readWrite của đúng DB và authSource tương ứng. postgres-data được giữ trong khai báo volume để bảo toàn dữ liệu cũ, nhưng Document mới không kết nối PostgreSQL. MinIO tạo bucket document-sandbox-private, tắt truy cập anonymous. Redis bật mật khẩu và AOF. Dữ liệu lưu trong volume được Compose đặt tên theo project riêng.
 
-Document gọi đúng http://tenant:8080/internal/authorization/course và chuyển tiếp cookie tokenAdmin của người dùng. Các service chờ dependency ready, replica set và bucket được tạo trước khi khởi động. Document /health/ready kiểm tra PostgreSQL, bảng đã migrate, Redis và quyền truy cập bucket.
+Document gọi đúng http://tenant:8080/internal/authorization/course và chuyển tiếp cookie tokenAdmin của người dùng. Các service chờ dependency ready, replica set và bucket được tạo trước khi khởi động. Document /health/ready kiểm tra MongoDB, collections/indexes, Redis và quyền truy cập bucket.
 
 ## Kiểm tra
 
-sandbox:smoke thực hiện thật: kiểm tra readiness; đăng nhập; tạo hai tài khoản, tenant và course thử; xác thực token nội bộ; từ chối anonymous/người ngoài tenant; upload PDF và retry idempotent; kiểm tra metadata/checksum PostgreSQL, event Redis, byte lưu S3 và chặn đọc S3 anonymous.
+sandbox:smoke thực hiện thật: kiểm tra readiness; đăng nhập; tạo hai tài khoản, tenant và course thử; xác thực token nội bộ; từ chối anonymous/người ngoài tenant; upload PDF và retry idempotent; kiểm tra metadata/checksum MongoDB, event Redis, byte lưu S3 và chặn đọc S3 anonymous.
 
-Sau `npm run sandbox:fixtures`, chạy `npm run sandbox:upload-e2e` để kiểm chứng U1–U7 trên course và hai phiên vừa tạo. Bài này đối chiếu metadata PostgreSQL, object S3 và event Redis trước–sau từng ca; ca U7 tạm dừng Tenant trong sandbox và tự khởi động lại. Chỉ chạy khi không có tác vụ khác dùng sandbox. Fixture và secret vẫn nằm trong `.test-data` được Git bỏ qua.
+Sau `npm run sandbox:fixtures`, chạy `npm run sandbox:upload-e2e` để kiểm chứng U1–U7 trên course và hai phiên vừa tạo. Bài này đối chiếu metadata MongoDB, object S3 và event Redis trước–sau từng ca; ca U7 tạm dừng Tenant trong sandbox và tự khởi động lại. Chỉ chạy khi không có tác vụ khác dùng sandbox. Fixture và secret vẫn nằm trong `.test-data` được Git bỏ qua.
 
 Bài smoke giữ lại fixture theo ID được in ra để kiểm tra. Nó không dùng database ngoài sandbox. Chưa có worker xử lý ingestion trong stack này: kỳ vọng kết quả upload là QUEUED, không phải tài liệu đã trích xuất xong.
 
@@ -70,3 +70,13 @@ Sau khi Auth/Tenant ready, chạy `npm run sandbox:fixtures`. Lệnh tạo tenan
 Kết quả riêng tư nằm tại `.test-data/document-upload-fixture.json` và `.test-data/document-upload.postman_environment.json`. File đầu chứa ID, tài khoản thử, cookie, CSRF và thời hạn JWT; file sau có thể import vào Postman. Dùng header `Cookie: {{uploadAllowedCookie}}` hoặc `Cookie: {{uploadDeniedCookie}}`. Chỉ nhập raw JWT trong trường cookie tokenAdmin thì dùng `uploadAllowedToken` hoặc `uploadDeniedToken`.
 
 Mỗi lần chạy tạo bộ dữ liệu mới và thay file kết quả bằng bộ mới nhất. Các file .test-data có secret, được Git bỏ qua. JWT cấp qua API login với rememberPassword=true, không tự ký token. Chạy lệnh trên môi trường Docker sẽ tạo dữ liệu trong volume Docker; nếu chạy Auth/Tenant cục bộ thì dữ liệu thuộc MongoDB cục bộ tương ứng, không tự chuyển sang Docker.
+
+## R1: credential isolation và kiểm thử Mongo
+
+Chạy lại sandbox:init để bổ sung sáu biến AUTH/TENANT/DOCUMENT_MONGO_USERNAME/PASSWORD còn thiếu. Giá trị cũ được giữ; app account không được dùng tên/mật khẩu root hoặc dùng chung credential. Bootstrap idempotent chỉ tạo user còn thiếu; nếu account đã có role khác hoặc password không khớp thì dừng và yêu cầu operator xử lý có phê duyệt, không tự rotate secret hoặc hạ quyền account trên dữ liệu đang có. Không chạy down -v.
+
+Chạy node scripts/sandbox.mjs permissions sau khi cluster ready: kiểm tra ba DB riêng và sáu cặp đọc chéo bị từ chối. node infrastructure/sandbox/verify-mongo.mjs tạo replica set loopback hoàn toàn mới, kiểm tra thêm sáu cặp ghi chéo và chạy Maven Mongo component tests. Cần JDK21/Maven; có thể đặt MONGOMS_SYSTEM_BINARY và R1_MAVEN_CACHE. Kết quả trong .test-data, không dùng cluster hoặc secret cũ.
+
+Chạy sandbox:fixtures mới trước sandbox:upload-e2e. M03 dùng PDF thực sự có một trang/văn bản; PDFBox ở test scope xác minh cùng byte fixture. Hai tenant/course được tạo thật qua API; E2E xác nhận course thứ hai tồn tại trước upload, kiểm tra từ chối cross-tenant và snapshot cả hai phạm vi. Metadata/jobs kiểm bằng Document user qua mongosh, không dùng Mongo root. Không thêm worker hoặc đợi READY.
+
+Dữ liệu PostgreSQL cũ không tự chuyển sang MongoDB. Hướng dẫn mapping/rollback nằm trong services/document-service/database/R1-MIGRATION-ROLLBACK.md. Chỉ cutover dữ liệu thật sau khi E2E thực tế và đối soát/backup được duyệt; nhánh mới không phải bằng chứng sẵn sàng production.
