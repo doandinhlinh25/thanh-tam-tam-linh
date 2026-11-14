@@ -6,6 +6,7 @@ trong `services/tenant-service`.
 
 - Baseline: `origin/main` @ `6663a36`
 - Nhánh nộp bài: `bt3/23001935-vt004-bulk-enrollment-import`
+- Link nhánh: `https://github.com/doandinhlinh25/thanh-tam-tam-linh/tree/bt3/23001935-vt004-bulk-enrollment-import`
 - Mutant tạm (không merge, không nằm trong nhánh nộp): `mutant/bt3-m1-invert-student-guard` @ `918b128`
 
 ## Yêu cầu môi trường
