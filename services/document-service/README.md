@@ -7,14 +7,14 @@ Java packages under `com.linh.document`:
 - `controller`: upload endpoint; `services.authorization`: course permission check before controller reads the file.
 - `dto.request`, `dto.response`: request validation and public response models.
 - `services.business`, `services.authorization`, `services.queue`, and `services.storage`: interfaces and their implementations; `utils`: job ID helper.
-- `entity`, `constants`, `exception`: JPA document mapping, shared values, and error handling.
-- `repository`: Spring Data JPA queries, including native `ON CONFLICT` statements for idempotent uploads and ingestion jobs.
+- `entity`, `constants`, `exception`: MongoDB document mapping, shared values, and error handling.
+- `repository`: Spring Data MongoDB queries, with unique compound indexes and Mongo transactions for ingestion jobs/status.
 
 `DocumentApplication` remains in the root package so Spring Boot can discover all components.
 
 ## Start
 
-1. Create a PostgreSQL database and apply `database/migrations/001_document_upload.sql`.
+1. Use a MongoDB replica set and a dedicated readWrite user for document_sandbox (or tt_document_db). Set DOCUMENT_MONGODB_URI with its own authSource. Indexes are initialized on startup; no SQL connection is opened.
 2. Create a private S3 compatible bucket and provide Redis with Streams enabled.
 3. Start Auth Service and Tenant Service. Set the environment variables in `.env.example` for Document Service. Its default `DOCUMENT_UPLOAD_AUTH_URL` is `http://localhost:4002/internal/authorization/course`.
 4. Set `DOCUMENT_SERVICE_TOKEN` to the same private value in both Document Service and Tenant Service environments. Generate a value of at least 32 characters; do not commit the value. Tenant Service also needs its own `AUTH_TENANT_TOKEN` matching Auth Service.
@@ -33,9 +33,9 @@ curl -X POST 'http://localhost:8080/api/v1/courses/507f1f77bcf86cd799439011/docu
 
 Replace the example course ID with the 24-character MongoDB ObjectId of an existing course and `USER_JWT` with the `tokenAdmin` cookie returned by Auth Service login. The user must have upload permission for that course. The Spring MVC authorization interceptor sends the original session cookie and course ID to Tenant Service before the controller reads the multipart body. Tenant Service authenticates the Document Service token, validates the session through Auth Service, and checks course access. A successful response is `{"successful":true,"data":{"allowed":true,"tenantId":"...","userId":"..."}}`; missing or invalid credentials return HTTP 401 and insufficient course access returns HTTP 403. Tenant/user IDs supplied by the client are ignored. Set DOCUMENT_UPLOAD_AUTH_URL to the Tenant internal endpoint and give Tenant/Document the same DOCUMENT_SERVICE_TOKEN. Kong authentication and routing still need configuration.
 
-To verify the integration, upload a PDF with an authorized lecturer or tenant owner session and expect HTTP 202. Repeat without the cookie and expect HTTP 401; repeat with a valid session that lacks access to the course and expect HTTP 403. Only the authorized request should create document metadata, store the PDF, and publish an ingestion event. These checks require running Auth, Tenant, Document, PostgreSQL, Redis, and S3-compatible storage.
+To verify the integration, upload a PDF with an authorized lecturer or tenant owner session and expect HTTP 202. Repeat without the cookie and expect HTTP 401; repeat with a valid session that lacks access to the course and expect HTTP 403. Only the authorized request should create document metadata, store the PDF, and publish an ingestion event. These checks require running Auth, Tenant, Document, MongoDB, Redis, and S3-compatible storage.
 
-The PDF is stored privately under `tenantId/courseId/documentId/1.pdf`. Metadata is stored in PostgreSQL. An event matching `contracts/events/document-ingest-requested.v1.schema.json` is added to the Redis Stream `document-ingestion` in its `payload` field. Consumers must check the document and tenant again and handle `jobId` idempotently. If publication fails, the upload stays `UPLOADED`; retrying with the same key and bytes publishes it again. Configure Redis persistence for durable processing.
+The PDF is stored privately under `tenantId/courseId/documentId/1.pdf`. Metadata is stored in MongoDB. An event matching `contracts/events/document-ingest-requested.v1.schema.json` is added to the Redis Stream `document-ingestion` in its `payload` field. Consumers must check the document and tenant again and handle `jobId` idempotently. If publication fails, the upload stays `UPLOADED`; retrying with the same key and bytes publishes it again. Configure Redis persistence for durable processing.
 
 Upload validation checks the declared `application/pdf` MIME type and the leading `%PDF-` magic bytes only. It does not verify the full PDF structure or whether the file contains a text layer. HTTP 202 with `QUEUED` means upload and queueing were accepted; it does not mean the document is `READY` or searchable.
 
@@ -43,4 +43,8 @@ This implementation covers upload only. The contract's get, delete, retrieval, a
 
 ## Isolated integration environment
 
-From the repository root, run npm run sandbox:init, npm run sandbox:up, then npm run sandbox:smoke. See [sandbox setup](../../infrastructure/sandbox/README.md). GET /health/live reports liveness; GET /health/ready checks PostgreSQL schema, Redis and S3 bucket access.
+From the repository root, run npm run sandbox:init, npm run sandbox:up, then npm run sandbox:smoke. See [sandbox setup](../../infrastructure/sandbox/README.md). GET /health/live reports liveness; GET /health/ready checks MongoDB collections, Redis and S3 bucket access.
+
+## R1 conversion and rollback
+
+Only existing upload persistence changed. See [mapping, cutover and rollback](database/R1-MIGRATION-ROLLBACK.md). The preserved SQL migration is historical rollback material and is not executed by the Mongo runtime. Docker integration and operational cutover require separate verification; unit tests do not prove a complete upload stack.

@@ -1,3 +1,7 @@
+import {
+  ensureRuntimeCredentials,
+  validateRuntimeCredentials
+} from "../infrastructure/sandbox/runtime-credentials.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,19 +40,35 @@ export function compose(args, env, capture = false) {
 async function main() {
   const command = process.argv[2] || "status";
   if (command === "init") {
-    ensureEnv(envFile);
+    ensureRuntimeCredentials(envFile, ensureEnv(envFile));
     console.log(
       "Sandbox .env ready; existing secrets preserved. No service .env files were changed."
     );
     return;
   }
   if (!fs.existsSync(envFile)) throw new Error("Run npm run sandbox:init first");
-  const env = validateEnv(readEnv(envFile));
+  const env = validateRuntimeCredentials(validateEnv(readEnv(envFile)));
   if (command === "smoke") {
     const { smoke } = await import("./sandbox-smoke.mjs");
     await smoke(env);
     return;
   }
+  if (command === "permissions")
+    return compose(
+      [
+        "run",
+        "--rm",
+        "--no-deps",
+        "--entrypoint",
+        "mongosh",
+        "mongo-init",
+        "--quiet",
+        "--nodb",
+        "--file",
+        "/bootstrap/mongo-permissions.js"
+      ],
+      env
+    );
   if (command === "check") return compose(["config", "--quiet"], env);
   if (command === "up") {
     compose(["config", "--quiet"], env);
