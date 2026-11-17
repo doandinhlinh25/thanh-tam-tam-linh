@@ -1,13 +1,13 @@
 """Factory to instantiate configured LLM provider."""
-from typing import Optional
-from app.core.config import Settings, get_settings
+
 from app.ai.llm.base import BaseLLMProvider
 from app.ai.llm.providers.openai_provider import OpenAIProvider
+from app.core.config import Settings, get_settings
 
 
 class LLMFactory:
     @staticmethod
-    def get_provider(settings: Optional[Settings] = None) -> BaseLLMProvider:
+    def get_provider(settings: Settings | None = None) -> BaseLLMProvider:
         cfg = settings or get_settings()
         provider_name = (
             getattr(cfg, "LLM_PROVIDER", None)

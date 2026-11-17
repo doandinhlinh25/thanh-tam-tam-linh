@@ -1,19 +1,19 @@
 """Chat controller handling RAG QA endpoints."""
 import uuid
-from typing import Optional, Any
-from fastapi import APIRouter, Header, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.dependencies import get_session
+from collections.abc import AsyncIterator
+from typing import Any
+
+from fastapi import APIRouter, Depends, Header
+
+from app.dependencies import get_uow
+from app.domain.value_objects.tenant_context import TenantContext
 from app.integrations.database.unit_of_work import UnitOfWork
 from app.schemas.chat.request import CourseChatRequest, PersonalChatRequest
 from app.schemas.chat.response import ChatResponse, CitationSchema
 from app.services.chat_service import ChatService
-from app.domain.value_objects.tenant_context import TenantContext
 
 router = APIRouter()
-
-_chat_service = ChatService()
-
+_UOW_DEPENDENCY = Depends(get_uow)
 
 def _get_attr_or_key(obj: Any, *keys: str, default: Any = None) -> Any:
     for k in keys:
@@ -51,25 +51,25 @@ def _extract_citation_schema(c: Any, default_source: str = "official") -> Citati
     )
 
 
-def get_chat_service(session: Optional[AsyncSession] = Depends(get_session)) -> ChatService:
-    if session:
-        uow = UnitOfWork(session)
-        return ChatService(
-            uow=uow,
-            conversation_repo=uow.conversations,
-            message_repo=uow.messages,
-        )
-    return _chat_service
+async def get_chat_service(uow: UnitOfWork = _UOW_DEPENDENCY) -> AsyncIterator[ChatService]:
+    chat_service = ChatService(uow=uow, conversation_repo=uow.conversations, message_repo=uow.messages)
+    try:
+        yield chat_service
+    finally:
+        await chat_service.close()
+
+
+_CHAT_SERVICE_DEPENDENCY = Depends(get_chat_service)
 
 
 @router.post("/courses/{course_id}/chat", response_model=ChatResponse)
 async def ask_course_chat(
     course_id: str,
     payload: CourseChatRequest,
-    x_request_id: Optional[str] = Header(None),
-    x_tenant_id: Optional[str] = Header(None),
-    x_user_id: Optional[str] = Header(None),
-    chat_service: ChatService = Depends(get_chat_service),
+    x_request_id: str | None = Header(None),
+    x_tenant_id: str | None = Header(None),
+    x_user_id: str | None = Header(None),
+    chat_service: ChatService = _CHAT_SERVICE_DEPENDENCY,
 ):
     """Ask a question using authorized course and personal documents."""
     req_id = x_request_id or f"req-{uuid.uuid4().hex[:12]}"
@@ -131,10 +131,10 @@ async def ask_course_chat(
 @router.post("/personal-documents/chat", response_model=ChatResponse)
 async def ask_personal_chat(
     payload: PersonalChatRequest,
-    x_request_id: Optional[str] = Header(None),
-    x_tenant_id: Optional[str] = Header(None),
-    x_user_id: Optional[str] = Header(None),
-    chat_service: ChatService = Depends(get_chat_service),
+    x_request_id: str | None = Header(None),
+    x_tenant_id: str | None = Header(None),
+    x_user_id: str | None = Header(None),
+    chat_service: ChatService = _CHAT_SERVICE_DEPENDENCY,
 ):
     """Ask a question using the caller's personal documents."""
     req_id = x_request_id or f"req-{uuid.uuid4().hex[:12]}"

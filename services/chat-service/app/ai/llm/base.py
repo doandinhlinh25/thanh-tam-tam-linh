@@ -1,7 +1,8 @@
 """Base abstract class and protocol for LLM providers."""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Protocol, Union
+from typing import Protocol
+
 from app.ai.llm.schemas import LLMRequest, LLMResponse
 from app.schemas.llm import GenerateRequest, Usage
 
@@ -26,5 +27,5 @@ class LLMProvider(Protocol):
 
 class BaseLLMProvider(ABC):
     @abstractmethod
-    async def generate(self, request: Union[LLMRequest, GenerateRequest]) -> Union[LLMResponse, ProviderResult]:
+    async def generate(self, request: LLMRequest | GenerateRequest) -> LLMResponse | ProviderResult:
         pass

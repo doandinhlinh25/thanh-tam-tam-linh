@@ -23,8 +23,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY app/ ./app/
-COPY migrations/ ./migrations/
-COPY alembic.ini ./
+COPY scripts/ ./scripts/
 COPY pyproject.toml ./
 
 EXPOSE 8000

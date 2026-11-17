@@ -1,7 +1,8 @@
 """Maps retrieval API responses to domain Evidence value objects."""
-from typing import List, Union, Any
-from app.domain.value_objects.evidence import Evidence
+from typing import Any
+
 from app.ai.retrieval.schemas import RetrievedChunkSchema
+from app.domain.value_objects.evidence import Evidence
 
 
 class RetrievalMapper:
@@ -9,10 +10,10 @@ class RetrievalMapper:
 
     @staticmethod
     def to_domain(
-        payload: Union[List[Any], dict[str, Any]],
-    ) -> List[Evidence]:
+        payload: list[Any] | dict[str, Any],
+    ) -> list[Evidence]:
         """Convert candidates list or success envelope into domain Evidence objects."""
-        raw_candidates: List[Any] = []
+        raw_candidates: list[Any] = []
 
         if isinstance(payload, dict):
             # Handle Document Service SearchResponse: {successful: True, data: {candidates: [...]}}
@@ -30,7 +31,7 @@ class RetrievalMapper:
 
         raw_candidates = [c for c in (raw_candidates or []) if c is not None]
 
-        results: List[Evidence] = []
+        results: list[Evidence] = []
         for item in raw_candidates:
             if isinstance(item, Evidence):
                 results.append(item)

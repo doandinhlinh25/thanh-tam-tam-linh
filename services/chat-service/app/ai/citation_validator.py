@@ -1,15 +1,16 @@
 """Validates inline citations against provided source chunks."""
 import re
 import uuid
-from typing import List, Any
-from app.domain.value_objects.citation import ChatCitation
+from typing import ClassVar
+
 from app.domain.exceptions import CitationVerificationFailedException
+from app.domain.value_objects.citation import ChatCitation
 
 
 class CitationValidator:
     """Extracts inline citations, verifies candidate mapping, and builds ChatCitation objects."""
 
-    BRACKET_PATTERNS = [
+    BRACKET_PATTERNS: ClassVar[list[re.Pattern[str]]] = [
         re.compile(r"\[([^\]]+)\](?!\()"),
         re.compile(r"［([^］]+)］"),
         re.compile(r"【([^】]+)】"),
@@ -21,9 +22,12 @@ class CitationValidator:
     NUMERIC_PAREN_PATTERN = re.compile(
         r"\(([0-9ivxIVX]+(?:[-–—,;to\s]+[0-9ivxIVX]+)*)\)"
     )
-    CITATION_PATTERNS = BRACKET_PATTERNS + [PREFIX_PAREN_PATTERN, NUMERIC_PAREN_PATTERN]
+    CITATION_PATTERNS: ClassVar[list[re.Pattern[str]]] = BRACKET_PATTERNS + [
+        PREFIX_PAREN_PATTERN,
+        NUMERIC_PAREN_PATTERN,
+    ]
     CITATION_PATTERN = BRACKET_PATTERNS[0]
-    ROMAN_NUMERALS = {
+    ROMAN_NUMERALS: ClassVar[dict[str, int]] = {
         "i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5,
         "vi": 6, "vii": 7, "viii": 8, "ix": 9, "x": 10,
         "xi": 11, "xii": 12, "xiii": 13, "xiv": 14, "xv": 15,
@@ -35,14 +39,17 @@ class CitationValidator:
         """Distinguish numbered list enumeration markers from parenthesized citations."""
         if any(sep in token for sep in [",", ";", "-", "–", "—"]) or "to" in token.lower():
             return False
-        # If followed by whitespace + uppercase letter e.g. "(1) Nộp...", "(2) Chờ..."
-        if re.match(r"^\s+[A-ZÀ-Ỹ]", after):
-            # And preceded by start of string/line, colon, semicolon, dash, or list comma
-            if re.search(r"(?:^|\n)\s*$", before) or re.search(r"[:;\-–—]\s*$", before) or re.search(r",\s*$", before):
-                return True
-        return False
+        # If followed by whitespace + uppercase letter and preceded by a list boundary.
+        return bool(
+            re.match(r"^\s+[A-ZÀ-Ỹ]", after)
+            and (
+                re.search(r"(?:^|\n)\s*$", before)
+                or re.search(r"[:;\-–—]\s*$", before)
+                or re.search(r",\s*$", before)
+            )
+        )
 
-    def _parse_token(self, token: str) -> List[int]:
+    def _parse_token(self, token: str) -> list[int]:
         """Parse an individual citation token into one or more integer indices."""
         token = token.strip()
         if not token:
@@ -78,11 +85,11 @@ class CitationValidator:
 
         return []
 
-    def extract_citation_indices(self, answer: str) -> List[int]:
+    def extract_citation_indices(self, answer: str) -> list[int]:
         """Extract unique 1-based citation indices from answer preserving order of appearance."""
         if not answer:
             return []
-        indices: List[int] = []
+        indices: list[int] = []
 
         def _add_from_token(raw_token: str) -> None:
             subtokens = re.split(r"[,;]", raw_token)
@@ -126,11 +133,11 @@ class CitationValidator:
         """Alias for validate_citations."""
         return self.validate_citations(answer, evidence_list)
 
-    def build_citations(self, answer: str, evidence_list: list) -> List[ChatCitation]:
+    def build_citations(self, answer: str, evidence_list: list) -> list[ChatCitation]:
         """Build ChatCitation objects for each cited candidate in the evidence snapshot."""
         indices = self.extract_citation_indices(answer)
         total_candidates = len(evidence_list)
-        citations: List[ChatCitation] = []
+        citations: list[ChatCitation] = []
 
         for idx in indices:
             if not (1 <= idx <= total_candidates):

@@ -1,11 +1,15 @@
 """Integration tests for Chat API endpoints."""
-import pytest
-import httpx
+from datetime import UTC
 from unittest.mock import AsyncMock
-from app.main import app
-from app.api.controllers.chat_controller import get_chat_service
+
+import httpx
+import pytest
+
 from app.ai.pipeline import PipelineResult
+from app.api.controllers.chat_controller import get_chat_service
+from app.dependencies import get_uow
 from app.domain.value_objects.citation import ChatCitation
+from app.main import app
 
 
 def test_chat_api_placeholder():
@@ -95,8 +99,9 @@ async def test_ask_course_chat_insufficient_evidence():
 
 
 @pytest.mark.asyncio
-async def test_ask_course_chat_validation_error_empty_question():
+async def test_ask_course_chat_validation_error_empty_question(mongo_uow):
     """POST /api/v1/courses/{course_id}/chat returns 422 when question violates schema constraints."""
+    app.dependency_overrides[get_uow] = lambda: mongo_uow
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
@@ -117,51 +122,49 @@ async def test_conversations_unauthorized_without_user_id():
 
 
 @pytest.mark.asyncio
-async def test_conversations_list_filter_and_pagination():
+async def test_conversations_list_filter_and_pagination(mongo_uow):
     """GET /api/v1/conversations returns 200 with paginated conversations owned by caller."""
-    from datetime import datetime, timezone
-    from app.domain.entities.conversation import Conversation
-    from app.integrations.database.session import AsyncSessionLocal, ensure_db_initialized
-    from app.integrations.database.unit_of_work import UnitOfWork
+    from datetime import datetime
 
-    await ensure_db_initialized()
-    async with AsyncSessionLocal() as session:
-        uow = UnitOfWork(session)
-        now = datetime.now(timezone.utc)
-        conv1 = Conversation(
-            id="conv-api-1",
-            tenant_id="tenant-api",
-            user_id="user-api-1",
-            course_id="course-api-101",
-            source_scope="course_only",
-            title="Đại số tuyến tính",
-            created_at=now,
-            updated_at=now,
-        )
-        conv2 = Conversation(
-            id="conv-api-2",
-            tenant_id="tenant-api",
-            user_id="user-api-1",
-            course_id="course-api-202",
-            source_scope="course_only",
-            title="Giải tích nâng cao",
-            created_at=now,
-            updated_at=now,
-        )
-        conv_other = Conversation(
-            id="conv-api-other",
-            tenant_id="tenant-api",
-            user_id="user-api-other",
-            course_id="course-api-101",
-            source_scope="course_only",
-            title="Học viên khác",
-            created_at=now,
-            updated_at=now,
-        )
-        await uow.conversations.save(conv1)
-        await uow.conversations.save(conv2)
-        await uow.conversations.save(conv_other)
-        await uow.commit()
+    from app.domain.entities.conversation import Conversation
+
+    uow = mongo_uow
+    app.dependency_overrides[get_uow] = lambda: mongo_uow
+    now = datetime.now(UTC)
+    conv1 = Conversation(
+        id="conv-api-1",
+        tenant_id="tenant-api",
+        user_id="user-api-1",
+        course_id="course-api-101",
+        source_scope="course_only",
+        title="Đại số tuyến tính",
+        created_at=now,
+        updated_at=now,
+    )
+    conv2 = Conversation(
+        id="conv-api-2",
+        tenant_id="tenant-api",
+        user_id="user-api-1",
+        course_id="course-api-202",
+        source_scope="course_only",
+        title="Giải tích nâng cao",
+        created_at=now,
+        updated_at=now,
+    )
+    conv_other = Conversation(
+        id="conv-api-other",
+        tenant_id="tenant-api",
+        user_id="user-api-other",
+        course_id="course-api-101",
+        source_scope="course_only",
+        title="Học viên khác",
+        created_at=now,
+        updated_at=now,
+    )
+    await uow.conversations.save(conv1)
+    await uow.conversations.save(conv2)
+    await uow.conversations.save(conv_other)
+    await uow.commit()
 
     headers = {
         "X-Tenant-Id": "tenant-api",
@@ -188,60 +191,58 @@ async def test_conversations_list_filter_and_pagination():
 
 
 @pytest.mark.asyncio
-async def test_conversation_detail_and_owner_isolation():
+async def test_conversation_detail_and_owner_isolation(mongo_uow):
     """GET /api/v1/conversations/{conversationId} returns 200 with messages or 404 if unauthorized."""
-    from datetime import datetime, timezone
+    from datetime import datetime, timedelta
+
     from app.domain.entities.conversation import Conversation
     from app.domain.entities.message import Message
     from app.domain.value_objects.citation import ChatCitation
-    from app.integrations.database.session import AsyncSessionLocal, ensure_db_initialized
-    from app.integrations.database.unit_of_work import UnitOfWork
 
-    await ensure_db_initialized()
-    async with AsyncSessionLocal() as session:
-        uow = UnitOfWork(session)
-        now = datetime.now(timezone.utc)
-        conv = Conversation(
-            id="conv-detail-test",
-            tenant_id="tenant-sec",
-            user_id="user-owner",
-            course_id="course-sec",
-            source_scope="course_only",
-            title="Bảo mật ứng dụng",
-            created_at=now,
-            updated_at=now,
-        )
-        u_msg = Message(
-            id="msg-u-detail",
-            conversation_id="conv-detail-test",
-            role="user",
-            content="Cách phòng chống SQL Injection?",
-            created_at=now,
-        )
-        cit = ChatCitation(
-            citation_id="cit-sec-1",
-            evidence_id="ev-sec-1",
-            source_type="official",
-            document_id="doc-owasp",
-            document_name="OWASP_Top_10.pdf",
-            page_from=5,
-            page_to=6,
-            snippet="Sử dụng parameterized queries để ngăn ngừa SQL injection.",
-        )
-        a_msg = Message(
-            id="msg-a-detail",
-            conversation_id="conv-detail-test",
-            role="assistant",
-            content="Sử dụng parameterized queries [1].",
-            status="answered",
-            refused=False,
-            citations=[cit],
-            created_at=now,
-        )
-        await uow.conversations.save(conv)
-        await uow.messages.save(u_msg)
-        await uow.messages.save(a_msg)
-        await uow.commit()
+    uow = mongo_uow
+    app.dependency_overrides[get_uow] = lambda: mongo_uow
+    now = datetime.now(UTC)
+    conv = Conversation(
+        id="conv-detail-test",
+        tenant_id="tenant-sec",
+        user_id="user-owner",
+        course_id="course-sec",
+        source_scope="course_only",
+        title="Bảo mật ứng dụng",
+        created_at=now,
+        updated_at=now,
+    )
+    u_msg = Message(
+        id="msg-u-detail",
+        conversation_id="conv-detail-test",
+        role="user",
+        content="Cách phòng chống SQL Injection?",
+        created_at=now,
+    )
+    cit = ChatCitation(
+        citation_id="cit-sec-1",
+        evidence_id="ev-sec-1",
+        source_type="official",
+        document_id="doc-owasp",
+        document_name="OWASP_Top_10.pdf",
+        page_from=5,
+        page_to=6,
+        snippet="Sử dụng parameterized queries để ngăn ngừa SQL injection.",
+    )
+    a_msg = Message(
+        id="msg-a-detail",
+        conversation_id="conv-detail-test",
+        role="assistant",
+        content="Sử dụng parameterized queries [1].",
+        status="answered",
+        refused=False,
+        citations=[cit],
+        created_at=now + timedelta(milliseconds=1),
+    )
+    await uow.conversations.save(conv)
+    await uow.messages.save(u_msg)
+    await uow.messages.save(a_msg)
+    await uow.commit()
 
     owner_headers = {"X-Tenant-Id": "tenant-sec", "X-User-Id": "user-owner"}
     other_headers = {"X-Tenant-Id": "tenant-sec", "X-User-Id": "user-other"}
@@ -271,29 +272,27 @@ async def test_conversation_detail_and_owner_isolation():
 
 
 @pytest.mark.asyncio
-async def test_conversation_deletion_and_cleanup():
+async def test_conversation_deletion_and_cleanup(mongo_uow):
     """DELETE /api/v1/conversations/{conversationId} deletes conversation data and returns 200."""
-    from datetime import datetime, timezone
-    from app.domain.entities.conversation import Conversation
-    from app.integrations.database.session import AsyncSessionLocal, ensure_db_initialized
-    from app.integrations.database.unit_of_work import UnitOfWork
+    from datetime import datetime
 
-    await ensure_db_initialized()
-    async with AsyncSessionLocal() as session:
-        uow = UnitOfWork(session)
-        now = datetime.now(timezone.utc)
-        conv = Conversation(
-            id="conv-to-delete",
-            tenant_id="tenant-del",
-            user_id="user-del",
-            course_id="c1",
-            source_scope="course_only",
-            title="Cuộc trò chuyện cần xóa",
-            created_at=now,
-            updated_at=now,
-        )
-        await uow.conversations.save(conv)
-        await uow.commit()
+    from app.domain.entities.conversation import Conversation
+
+    uow = mongo_uow
+    app.dependency_overrides[get_uow] = lambda: mongo_uow
+    now = datetime.now(UTC)
+    conv = Conversation(
+        id="conv-to-delete",
+        tenant_id="tenant-del",
+        user_id="user-del",
+        course_id="c1",
+        source_scope="course_only",
+        title="Cuộc trò chuyện cần xóa",
+        created_at=now,
+        updated_at=now,
+    )
+    await uow.conversations.save(conv)
+    await uow.commit()
 
     headers = {"X-Tenant-Id": "tenant-del", "X-User-Id": "user-del"}
     transport = httpx.ASGITransport(app=app)
@@ -312,34 +311,37 @@ async def test_conversation_deletion_and_cleanup():
 
 
 @pytest.mark.asyncio
-async def test_submit_message_feedback_endpoint():
+async def test_submit_message_feedback_endpoint(mongo_uow):
     """POST /api/v1/messages/{messageId}/feedback creates and updates feedback for assistant messages."""
-    from datetime import datetime, timezone
-    from app.domain.entities.message import Message
-    from app.integrations.database.session import AsyncSessionLocal, ensure_db_initialized
-    from app.integrations.database.unit_of_work import UnitOfWork
+    from datetime import datetime
 
-    await ensure_db_initialized()
-    async with AsyncSessionLocal() as session:
-        uow = UnitOfWork(session)
-        now = datetime.now(timezone.utc)
-        asst_msg = Message(
-            id="msg-fb-asst",
-            conversation_id="conv-fb",
-            role="assistant",
-            content="Đây là câu trả lời trợ lý.",
-            created_at=now,
-        )
-        user_msg = Message(
-            id="msg-fb-user",
-            conversation_id="conv-fb",
-            role="user",
-            content="Câu hỏi học viên.",
-            created_at=now,
-        )
-        await uow.messages.save(asst_msg)
-        await uow.messages.save(user_msg)
-        await uow.commit()
+    from app.domain.entities.conversation import Conversation
+    from app.domain.entities.message import Message
+
+    uow = mongo_uow
+    app.dependency_overrides[get_uow] = lambda: mongo_uow
+    now = datetime.now(UTC)
+    await uow.conversations.save(Conversation(
+        id="conv-fb", tenant_id="tenant-fb", user_id="user-fb", course_id="c1",
+        title="Feedback", created_at=now, updated_at=now,
+    ))
+    asst_msg = Message(
+        id="msg-fb-asst",
+        conversation_id="conv-fb",
+        role="assistant",
+        content="Đây là câu trả lời trợ lý.",
+        created_at=now,
+    )
+    user_msg = Message(
+        id="msg-fb-user",
+        conversation_id="conv-fb",
+        role="user",
+        content="Câu hỏi học viên.",
+        created_at=now,
+    )
+    await uow.messages.save(asst_msg)
+    await uow.messages.save(user_msg)
+    await uow.commit()
 
     headers = {"X-Tenant-Id": "tenant-fb", "X-User-Id": "user-fb"}
     transport = httpx.ASGITransport(app=app)
@@ -403,8 +405,9 @@ async def test_submit_message_feedback_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_conversations_invalid_cursor_returns_400():
+async def test_conversations_invalid_cursor_returns_400(mongo_uow):
     """GET /api/v1/conversations with malformed cursor returns 400 BadRequest with ApiFailureResponse."""
+    app.dependency_overrides[get_uow] = lambda: mongo_uow
     headers = {"X-Tenant-Id": "t1", "X-User-Id": "u1"}
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -417,39 +420,37 @@ async def test_conversations_invalid_cursor_returns_400():
 
 
 @pytest.mark.asyncio
-async def test_conversation_messages_pagination_with_next_cursor():
+async def test_conversation_messages_pagination_with_next_cursor(mongo_uow):
     """GET /api/v1/conversations/{conversationId} returns next_cursor when more messages exist."""
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta
+
     from app.domain.entities.conversation import Conversation
     from app.domain.entities.message import Message
-    from app.integrations.database.session import AsyncSessionLocal, ensure_db_initialized
-    from app.integrations.database.unit_of_work import UnitOfWork
 
-    await ensure_db_initialized()
-    async with AsyncSessionLocal() as session:
-        uow = UnitOfWork(session)
-        now = datetime.now(timezone.utc)
-        conv = Conversation(
-            id="conv-pag-api",
-            tenant_id="tenant-pag",
-            user_id="user-pag",
-            course_id="c1",
-            source_scope="course_only",
-            title="Pagination test",
-            created_at=now,
-            updated_at=now,
+    uow = mongo_uow
+    app.dependency_overrides[get_uow] = lambda: mongo_uow
+    now = datetime.now(UTC)
+    conv = Conversation(
+        id="conv-pag-api",
+        tenant_id="tenant-pag",
+        user_id="user-pag",
+        course_id="c1",
+        source_scope="course_only",
+        title="Pagination test",
+        created_at=now,
+        updated_at=now,
+    )
+    await uow.conversations.save(conv)
+    for i in range(3):
+        msg = Message(
+            id=f"msg-pag-{i}",
+            conversation_id="conv-pag-api",
+            role="user" if i % 2 == 0 else "assistant",
+            content=f"Message {i}",
+            created_at=now + timedelta(seconds=i * 10),
         )
-        await uow.conversations.save(conv)
-        for i in range(3):
-            msg = Message(
-                id=f"msg-pag-{i}",
-                conversation_id="conv-pag-api",
-                role="user" if i % 2 == 0 else "assistant",
-                content=f"Message {i}",
-                created_at=now + timedelta(seconds=i * 10),
-            )
-            await uow.messages.save(msg)
-        await uow.commit()
+        await uow.messages.save(msg)
+    await uow.commit()
 
     headers = {"X-Tenant-Id": "tenant-pag", "X-User-Id": "user-pag"}
     transport = httpx.ASGITransport(app=app)
@@ -472,29 +473,27 @@ async def test_conversation_messages_pagination_with_next_cursor():
 
 
 @pytest.mark.asyncio
-async def test_chat_course_mismatch_returns_409_conflict():
+async def test_chat_course_mismatch_returns_409_conflict(mongo_uow):
     """POST /api/v1/courses/{course_id}/chat returns 409 Conflict when conversation belongs to another course."""
-    from datetime import datetime, timezone
-    from app.domain.entities.conversation import Conversation
-    from app.integrations.database.session import AsyncSessionLocal, ensure_db_initialized
-    from app.integrations.database.unit_of_work import UnitOfWork
+    from datetime import datetime
 
-    await ensure_db_initialized()
-    async with AsyncSessionLocal() as session:
-        uow = UnitOfWork(session)
-        now = datetime.now(timezone.utc)
-        conv = Conversation(
-            id="conv-for-course-A",
-            tenant_id="tenant-conf",
-            user_id="user-conf",
-            course_id="course-A",
-            source_scope="course_only",
-            title="Course A conversation",
-            created_at=now,
-            updated_at=now,
-        )
-        await uow.conversations.save(conv)
-        await uow.commit()
+    from app.domain.entities.conversation import Conversation
+
+    uow = mongo_uow
+    app.dependency_overrides[get_uow] = lambda: mongo_uow
+    now = datetime.now(UTC)
+    conv = Conversation(
+        id="conv-for-course-A",
+        tenant_id="tenant-conf",
+        user_id="user-conf",
+        course_id="course-A",
+        source_scope="course_only",
+        title="Course A conversation",
+        created_at=now,
+        updated_at=now,
+    )
+    await uow.conversations.save(conv)
+    await uow.commit()
 
     headers = {
         "X-Tenant-Id": "tenant-conf",
@@ -616,42 +615,40 @@ async def test_personal_documents_chat_endpoint_success():
 
 
 @pytest.mark.asyncio
-async def test_chat_cross_scope_conflicts_return_409():
+async def test_chat_cross_scope_conflicts_return_409(mongo_uow):
     """Verify 409 Conflict across course-vs-personal mismatch and source_scope incompatibility."""
-    from datetime import datetime, timezone
-    from app.domain.entities.conversation import Conversation
-    from app.integrations.database.session import AsyncSessionLocal, ensure_db_initialized
-    from app.integrations.database.unit_of_work import UnitOfWork
+    from datetime import datetime
 
-    await ensure_db_initialized()
-    async with AsyncSessionLocal() as session:
-        uow = UnitOfWork(session)
-        now = datetime.now(timezone.utc)
-        # 1. Course conversation
-        c_course = Conversation(
-            id="conv-crs-scope-test",
-            tenant_id="t-scope",
-            user_id="u-scope",
-            course_id="math-101",
-            source_scope="course_only",
-            title="Course Math",
-            created_at=now,
-            updated_at=now,
-        )
-        # 2. Personal conversation
-        c_pers = Conversation(
-            id="conv-pers-scope-test",
-            tenant_id="t-scope",
-            user_id="u-scope",
-            course_id=None,
-            source_scope="personal_only",
-            title="Personal Notes",
-            created_at=now,
-            updated_at=now,
-        )
-        await uow.conversations.save(c_course)
-        await uow.conversations.save(c_pers)
-        await uow.commit()
+    from app.domain.entities.conversation import Conversation
+
+    uow = mongo_uow
+    app.dependency_overrides[get_uow] = lambda: mongo_uow
+    now = datetime.now(UTC)
+    # 1. Course conversation
+    c_course = Conversation(
+        id="conv-crs-scope-test",
+        tenant_id="t-scope",
+        user_id="u-scope",
+        course_id="math-101",
+        source_scope="course_only",
+        title="Course Math",
+        created_at=now,
+        updated_at=now,
+    )
+    # 2. Personal conversation
+    c_pers = Conversation(
+        id="conv-pers-scope-test",
+        tenant_id="t-scope",
+        user_id="u-scope",
+        course_id=None,
+        source_scope="personal_only",
+        title="Personal Notes",
+        created_at=now,
+        updated_at=now,
+    )
+    await uow.conversations.save(c_course)
+    await uow.conversations.save(c_pers)
+    await uow.commit()
 
     headers = {"X-Tenant-Id": "t-scope", "X-User-Id": "u-scope"}
     transport = httpx.ASGITransport(app=app)
@@ -689,48 +686,47 @@ async def test_chat_cross_scope_conflicts_return_409():
 
 
 @pytest.mark.asyncio
-async def test_conversation_deletion_purges_associated_messages_and_feedback():
+async def test_conversation_deletion_purges_associated_messages_and_feedback(mongo_uow):
     """DELETE /api/v1/conversations/{conversationId} cascades deletion to messages and feedback."""
-    from datetime import datetime, timezone
-    from app.domain.entities.conversation import Conversation
-    from app.domain.entities.message import Message
-    from app.domain.entities.feedback import Feedback
-    from app.integrations.database.session import AsyncSessionLocal, ensure_db_initialized
-    from app.integrations.database.unit_of_work import UnitOfWork
+    from datetime import datetime
 
-    await ensure_db_initialized()
-    async with AsyncSessionLocal() as session:
-        uow = UnitOfWork(session)
-        now = datetime.now(timezone.utc)
-        conv = Conversation(
-            id="conv-cascade-del",
-            tenant_id="t-casc",
-            user_id="u-casc",
-            course_id="c1",
-            source_scope="course_only",
-            title="Cascade delete",
-            created_at=now,
-            updated_at=now,
-        )
-        m_asst = Message(
-            id="msg-casc-asst",
-            conversation_id="conv-cascade-del",
-            role="assistant",
-            content="Answer cascade",
-            created_at=now,
-        )
-        fb = Feedback(
-            id="fb-casc",
-            message_id="msg-casc-asst",
-            user_id="u-casc",
-            rating="positive",
-            comment="Great answer",
-            created_at=now,
-        )
-        await uow.conversations.save(conv)
-        await uow.messages.save(m_asst)
-        await uow.feedbacks.save(fb)
-        await uow.commit()
+    from app.domain.entities.conversation import Conversation
+    from app.domain.entities.feedback import Feedback
+    from app.domain.entities.message import Message
+
+    uow = mongo_uow
+    app.dependency_overrides[get_uow] = lambda: mongo_uow
+    now = datetime.now(UTC)
+    conv = Conversation(
+        id="conv-cascade-del",
+        tenant_id="t-casc",
+        user_id="u-casc",
+        course_id="c1",
+        source_scope="course_only",
+        title="Cascade delete",
+        created_at=now,
+        updated_at=now,
+    )
+    m_asst = Message(
+        id="msg-casc-asst",
+        conversation_id="conv-cascade-del",
+        role="assistant",
+        content="Answer cascade",
+        created_at=now,
+    )
+    fb = Feedback(
+        id="fb-casc",
+        message_id="msg-casc-asst",
+        user_id="u-casc",
+        tenant_id="t-casc",
+        rating="positive",
+        comment="Great answer",
+        created_at=now,
+    )
+    await uow.conversations.save(conv)
+    await uow.messages.save(m_asst)
+    await uow.feedbacks.save(fb)
+    await uow.commit()
 
     headers = {"X-Tenant-Id": "t-casc", "X-User-Id": "u-casc"}
     transport = httpx.ASGITransport(app=app)
@@ -745,12 +741,12 @@ async def test_conversation_deletion_purges_associated_messages_and_feedback():
         assert get_res.status_code == 404
 
     # Direct database verification that message and feedback rows were purged
-    async with AsyncSessionLocal() as session:
-        uow = UnitOfWork(session)
-        msg_found = await uow.messages.get_by_id("msg-casc-asst")
-        assert msg_found is None
-        fb_found = await uow.feedbacks.get_by_message_and_user("msg-casc-asst", "u-casc")
-        assert fb_found is None
+    uow = mongo_uow
+    app.dependency_overrides[get_uow] = lambda: mongo_uow
+    msg_found = await uow.messages.get_by_id("msg-casc-asst", "t-casc", "u-casc")
+    assert msg_found is None
+    fb_found = await uow.feedbacks.get_by_message_and_user("msg-casc-asst", "u-casc", "t-casc")
+    assert fb_found is None
 
 
 @pytest.mark.asyncio

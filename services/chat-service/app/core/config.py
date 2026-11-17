@@ -1,6 +1,7 @@
 """Application configuration loaded from environment variables."""
 from functools import lru_cache
-from typing import Any, List
+from typing import Any
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,8 +14,8 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
     LOG_LEVEL: str = "INFO"
 
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/chat_db"
-    DATABASE_SYNC_URL: str = "postgresql://postgres:postgres@localhost:5432/chat_db"
+    MONGODB_URI: str = "mongodb://localhost:27017/?replicaSet=rs0"
+    MONGODB_DATABASE: str = "tt_chat_db"
 
     LLM_PROVIDER: str = "openai"
     OPENAI_API_KEY: str = "sk-placeholder"
@@ -34,7 +35,7 @@ class Settings(BaseSettings):
     RETRIEVAL_SERVICE_URL: str = "http://localhost:8001"
     RETRIEVAL_TIMEOUT_SECONDS: float = 10.0
 
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
     AUTH_SECRET_KEY: str = "change-me-in-production"
 
     @model_validator(mode="before")

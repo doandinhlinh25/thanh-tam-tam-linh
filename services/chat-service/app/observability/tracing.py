@@ -2,4 +2,3 @@
 
 def setup_tracing():
     """Initialize tracing tracer provider and exporters."""
-    pass

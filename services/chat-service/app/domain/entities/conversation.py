@@ -1,7 +1,7 @@
 """Conversation domain entity."""
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+
 from app.domain.entities.message import Message
 
 
@@ -10,11 +10,11 @@ class Conversation:
     id: str
     tenant_id: str
     user_id: str
-    course_id: Optional[str]
-    title: Optional[str]
+    course_id: str | None
+    title: str | None
     created_at: datetime
     updated_at: datetime
-    messages: List[Message] = field(default_factory=list)
+    messages: list[Message] = field(default_factory=list)
     source_scope: str = "course_only"
-    last_message_at: Optional[datetime] = None
+    last_message_at: datetime | None = None
     is_deleted: bool = False

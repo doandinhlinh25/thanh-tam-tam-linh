@@ -1,5 +1,5 @@
 """Evidence gate ensuring retrieved chunks satisfy relevance threshold."""
-from typing import List, Any
+from typing import Any
 
 
 class EvidenceGate:

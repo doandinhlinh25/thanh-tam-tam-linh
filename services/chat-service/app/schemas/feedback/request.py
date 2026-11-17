@@ -1,19 +1,20 @@
 """Feedback request schemas matching contracts/openapi/chat.yaml."""
-from typing import Optional, Union, Literal
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
 class FeedbackRequest(BaseModel):
-    rating: Union[Literal["positive", "negative"], int, str] = Field(
+    rating: Literal["positive", "negative"] | int | str = Field(
         ...,
         description="Rating enum 'positive' or 'negative', or numeric rating",
     )
-    comment: Optional[str] = Field(None, max_length=2000, description="Optional feedback explanation")
-    reason: Optional[str] = Field(None, max_length=255, description="Optional feedback reason")
+    comment: str | None = Field(None, max_length=2000, description="Optional feedback explanation")
+    reason: str | None = Field(None, max_length=255, description="Optional feedback reason")
 
     @field_validator("rating")
     @classmethod
-    def validate_rating(cls, v: Union[str, int]) -> str:
+    def validate_rating(cls, v: str | int) -> str:
         if isinstance(v, int):
             return "positive" if v >= 3 else "negative"
         val = str(v).lower().strip()
@@ -24,4 +25,4 @@ class FeedbackRequest(BaseModel):
 
 class FeedbackCreateRequest(FeedbackRequest):
     """Backward-compatible request schema."""
-    message_id: Optional[str] = None
+    message_id: str | None = None

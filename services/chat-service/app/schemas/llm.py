@@ -79,13 +79,13 @@ ErrorResponse = ErrorBody
 GenerateOutput = Output
 
 __all__ = [
-    "Message",
-    "GenerateRequest",
-    "Usage",
-    "Output",
-    "GenerateOutput",
-    "GenerateResponse",
     "ErrorBody",
     "ErrorResponse",
+    "GenerateOutput",
+    "GenerateRequest",
+    "GenerateResponse",
+    "Message",
+    "Output",
+    "Usage",
 ]
 

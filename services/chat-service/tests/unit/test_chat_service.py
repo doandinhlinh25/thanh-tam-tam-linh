@@ -1,17 +1,17 @@
 """Unit tests for ChatService, AIPipeline, and AnswerValidator."""
-import pytest
-from unittest.mock import AsyncMock, MagicMock
+from datetime import UTC
+from unittest.mock import AsyncMock
 
-from app.domain.value_objects.tenant_context import TenantContext
-from app.domain.value_objects.evidence import Evidence
-from app.domain.value_objects.citation import ChatCitation
-from app.ai.pipeline import AIPipeline, PipelineResult
+import pytest
+
 from app.ai.answer_validator import AnswerValidator
-from app.ai.evidence_gate import EvidenceGate
-from app.ai.citation_validator import CitationValidator
-from app.ai.refusal_policy import RefusalPolicy
-from app.services.chat_service import ChatService
 from app.ai.llm.schemas import LLMResponse
+from app.ai.pipeline import AIPipeline, PipelineResult
+from app.ai.refusal_policy import RefusalPolicy
+from app.domain.value_objects.citation import ChatCitation
+from app.domain.value_objects.evidence import Evidence
+from app.domain.value_objects.tenant_context import TenantContext
+from app.services.chat_service import ChatService
 
 
 def test_chat_service_placeholder():
@@ -200,7 +200,7 @@ async def test_chat_service_answer_question_delegation():
         metadata={},
     )
 
-    chat_service = ChatService(pipeline=mock_pipeline)
+    chat_service = ChatService(pipeline=mock_pipeline, uow=AsyncMock())
     context = TenantContext(tenant_id="t1", user_id="u1", course_id="c1")
     res = await chat_service.answer_question(context, "Thử nghiệm")
 
@@ -494,7 +494,7 @@ async def test_chat_service_async_context_manager():
     )
     mock_pipeline.close = AsyncMock()
 
-    async with ChatService(pipeline=mock_pipeline) as service:
+    async with ChatService(pipeline=mock_pipeline, uow=AsyncMock(), owns_pipeline=True) as service:
         ctx = TenantContext(tenant_id="t1", user_id="u1", course_id="c1")
         res = await service.answer_question(ctx, "Test query")
         assert res.result_state == "answered"
@@ -527,6 +527,7 @@ async def test_chat_service_creates_conversation_and_persists_messages_and_citat
     mock_msg_repo = AsyncMock()
 
     service = ChatService(
+        uow=AsyncMock(),
         pipeline=mock_pipeline,
         conversation_repo=mock_conv_repo,
         message_repo=mock_msg_repo,
@@ -573,7 +574,8 @@ async def test_chat_service_creates_conversation_and_persists_messages_and_citat
 @pytest.mark.asyncio
 async def test_chat_service_uses_existing_conversation_when_supplied():
     """Verify ChatService reuses existing conversation thread when conversation_id is provided."""
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     from app.domain.entities.conversation import Conversation
 
     mock_pipeline = AsyncMock()
@@ -591,14 +593,15 @@ async def test_chat_service_uses_existing_conversation_when_supplied():
         user_id="student-1",
         course_id="cs101",
         title="Existing Thread",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     mock_conv_repo.get_by_id.return_value = existing_conv
 
     mock_msg_repo = AsyncMock()
 
     service = ChatService(
+        uow=AsyncMock(),
         pipeline=mock_pipeline,
         conversation_repo=mock_conv_repo,
         message_repo=mock_msg_repo,
@@ -607,11 +610,14 @@ async def test_chat_service_uses_existing_conversation_when_supplied():
     ctx = TenantContext(tenant_id="tenant-edu", user_id="student-1", course_id="cs101")
     res = await service.answer_question(ctx, "Tiếp tục bài trước", conversation_id="conv-existing-999")
 
-    mock_conv_repo.get_by_id.assert_called_once_with(
-        conversation_id="conv-existing-999",
-        tenant_id="tenant-edu",
-        user_id="student-1",
-    )
+    expected_owner_check = {
+        "conversation_id": "conv-existing-999",
+        "tenant_id": "tenant-edu",
+        "user_id": "student-1",
+    }
+    assert mock_conv_repo.get_by_id.call_count == 2
+    assert mock_conv_repo.get_by_id.call_args_list[0].kwargs == expected_owner_check
+    assert mock_conv_repo.get_by_id.call_args_list[1].kwargs == expected_owner_check
     assert res.conversation_id == "conv-existing-999"
 
 
@@ -630,6 +636,7 @@ async def test_chat_service_refusal_persistence_insufficient_evidence():
     mock_msg_repo = AsyncMock()
 
     service = ChatService(
+        uow=AsyncMock(),
         pipeline=mock_pipeline,
         conversation_repo=mock_conv_repo,
         message_repo=mock_msg_repo,
@@ -664,6 +671,7 @@ async def test_chat_service_long_query_title_truncation():
     mock_msg_repo = AsyncMock()
 
     service = ChatService(
+        uow=AsyncMock(),
         pipeline=mock_pipeline,
         conversation_repo=mock_conv_repo,
         message_repo=mock_msg_repo,
@@ -681,16 +689,18 @@ async def test_chat_service_long_query_title_truncation():
 @pytest.mark.asyncio
 async def test_chat_service_conflict_scenarios():
     """Verify ConflictException is raised when conversation does not match requested course or source scope."""
+    from datetime import datetime
+
     from app.core.exceptions import ConflictException
     from app.domain.entities.conversation import Conversation
-    from datetime import datetime, timezone
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     mock_conv_repo = AsyncMock()
     mock_msg_repo = AsyncMock()
     mock_pipeline = AsyncMock()
 
     service = ChatService(
+        uow=AsyncMock(),
         pipeline=mock_pipeline,
         conversation_repo=mock_conv_repo,
         message_repo=mock_msg_repo,
@@ -738,6 +748,7 @@ async def test_chat_service_conversation_not_found_raises_404():
 
     service = ChatService(
         pipeline=AsyncMock(),
+        uow=AsyncMock(),
         conversation_repo=mock_conv_repo,
         message_repo=AsyncMock(),
     )
@@ -767,6 +778,7 @@ async def test_chat_service_transaction_rollback_on_pipeline_failure():
     with pytest.raises(RuntimeError):
         await service.answer_question(ctx, "Will fail")
 
+    mock_uow.begin.assert_not_awaited()
     mock_uow.rollback.assert_awaited_once()
 
 
@@ -794,6 +806,7 @@ async def test_chat_service_handles_dict_citations_seamlessly():
     mock_msg_repo = AsyncMock()
 
     service = ChatService(
+        uow=AsyncMock(),
         pipeline=mock_pipeline,
         conversation_repo=mock_conv_repo,
         message_repo=mock_msg_repo,
@@ -815,12 +828,13 @@ async def test_chat_service_handles_dict_citations_seamlessly():
 @pytest.mark.asyncio
 async def test_conversation_service_unit_crud_and_isolation():
     """Verify ConversationService list, get, and delete operations in isolation."""
-    from datetime import datetime, timezone
-    from app.services.conversation_service import ConversationService
+    from datetime import datetime
+
     from app.domain.entities.conversation import Conversation
     from app.domain.entities.message import Message
+    from app.services.conversation_service import ConversationService
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     conv = Conversation(
         id="conv-u-1",
         tenant_id="t-u",
@@ -882,8 +896,8 @@ async def test_conversation_service_unit_crud_and_isolation():
     del_res = await service.delete_conversation(tenant_id="t-u", user_id="user-u", conversation_id="conv-u-1")
     assert del_res["successful"] is True
     assert del_res["data"]["deleted"] is True
-    mock_fb_repo.delete_by_conversation.assert_awaited_once_with("conv-u-1")
-    mock_msg_repo.delete_by_conversation.assert_awaited_once_with("conv-u-1")
+    mock_fb_repo.delete_by_conversation.assert_awaited_once_with("conv-u-1", "t-u", "user-u")
+    mock_msg_repo.delete_by_conversation.assert_awaited_once_with("conv-u-1", "t-u", "user-u")
     mock_conv_repo.delete.assert_awaited_once_with(
         conversation_id="conv-u-1",
         tenant_id="t-u",
@@ -896,8 +910,8 @@ async def test_conversation_service_unit_crud_and_isolation():
 @pytest.mark.asyncio
 async def test_conversation_service_not_found_isolation():
     """Verify ConversationService raises NotFoundException when conversation is not owned or missing."""
-    from app.services.conversation_service import ConversationService
     from app.core.exceptions import NotFoundException
+    from app.services.conversation_service import ConversationService
 
     mock_conv_repo = AsyncMock()
     mock_conv_repo.get_by_id.return_value = None
@@ -917,13 +931,14 @@ async def test_conversation_service_not_found_isolation():
 @pytest.mark.asyncio
 async def test_feedback_service_unit_submit_and_update():
     """Verify FeedbackService validates message, rating, updates existing records, and rejects non-assistant messages."""
-    from app.services.feedback_service import FeedbackService
-    from app.domain.entities.message import Message
-    from app.domain.entities.feedback import Feedback
-    from app.core.exceptions import NotFoundException, ValidationException
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    now = datetime.now(timezone.utc)
+    from app.core.exceptions import NotFoundException, ValidationException
+    from app.domain.entities.feedback import Feedback
+    from app.domain.entities.message import Message
+    from app.services.feedback_service import FeedbackService
+
+    now = datetime.now(UTC)
     mock_fb_repo = AsyncMock()
     mock_msg_repo = AsyncMock()
     mock_uow = AsyncMock()

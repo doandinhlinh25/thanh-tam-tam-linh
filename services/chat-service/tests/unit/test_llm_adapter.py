@@ -1,21 +1,25 @@
 """Unit tests for LLM provider adapters."""
-import pytest
 from unittest.mock import AsyncMock, patch
-import httpx
 
-from app.core.config import Settings
-from app.ai.llm.providers.openai_provider import OpenAIProvider, OpenAICompatibleProvider
+import httpx
+import pytest
+
+from app.ai.llm.providers.openai_provider import (
+    OpenAICompatibleProvider,
+    OpenAIProvider,
+)
 from app.ai.llm.schemas import LLMMessage, LLMRequest, LLMResponse
+from app.core.config import Settings
 from app.schemas.llm import GenerateRequest, Message
 from app.services.errors import (
+    LLMUnavailableError,
+    LLMUpstreamBadGatewayError,
     ProviderAuthError,
+    ProviderBadGatewayError,
     ProviderInvalidResponseError,
     ProviderRateLimitError,
     ProviderTimeoutError,
     ProviderUnavailableError,
-    ProviderBadGatewayError,
-    LLMUpstreamBadGatewayError,
-    LLMUnavailableError,
 )
 
 
@@ -313,9 +317,9 @@ async def test_openai_provider_fallback_to_openai_model_and_key():
 
 def test_error_definitions_and_aliases():
     from app.services.errors import (
-        ProviderBadGatewayError,
-        LLMUpstreamBadGatewayError,
         LLMUnavailableError,
+        LLMUpstreamBadGatewayError,
+        ProviderBadGatewayError,
         ProviderUnavailableError,
     )
     assert issubclass(ProviderBadGatewayError, ProviderUnavailableError)
@@ -330,7 +334,7 @@ def test_openai_compatible_provider_alias():
 
 
 def test_schema_contract_aliases():
-    from app.schemas.llm import ErrorBody, ErrorResponse, Output, GenerateOutput
+    from app.schemas.llm import ErrorBody, ErrorResponse, GenerateOutput, Output
     assert ErrorResponse is ErrorBody
     assert GenerateOutput is Output
 

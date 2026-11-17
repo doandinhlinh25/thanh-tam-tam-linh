@@ -1,19 +1,19 @@
 """Re-export LLM controller router and dependencies for backwards compatibility."""
 from app.api.controllers.llm_controller import (
-    router,
+    LLMServiceErrorWithStatus,
+    generate,
     get_provider,
     request_id_from_header,
     resolve_request_id,
-    generate,
-    LLMServiceErrorWithStatus,
+    router,
 )
 
 __all__ = [
-    "router",
+    "LLMServiceErrorWithStatus",
+    "generate",
     "get_provider",
     "request_id_from_header",
     "resolve_request_id",
-    "generate",
-    "LLMServiceErrorWithStatus",
+    "router",
 ]
 

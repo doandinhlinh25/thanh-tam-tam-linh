@@ -1,19 +1,19 @@
 """OpenAI provider implementation."""
-from typing import Optional, Union
+
 import httpx
 
-from app.core.config import Settings, get_settings
 from app.ai.llm.base import BaseLLMProvider, ProviderResult
 from app.ai.llm.schemas import LLMRequest, LLMResponse
+from app.core.config import Settings, get_settings
 from app.schemas.llm import GenerateRequest, Usage
 from app.services.errors import (
+    LLMUnavailableError,
+    LLMUpstreamBadGatewayError,
     ProviderAuthError,
     ProviderInvalidResponseError,
     ProviderRateLimitError,
     ProviderTimeoutError,
     ProviderUnavailableError,
-    LLMUpstreamBadGatewayError,
-    LLMUnavailableError,
 )
 
 
@@ -22,8 +22,8 @@ class OpenAIProvider(BaseLLMProvider):
 
     def __init__(
         self,
-        settings: Optional[Settings] = None,
-        client: Optional[httpx.AsyncClient] = None,
+        settings: Settings | None = None,
+        client: httpx.AsyncClient | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self._client = client
@@ -52,7 +52,7 @@ class OpenAIProvider(BaseLLMProvider):
         )
         return api_key.strip() if isinstance(api_key, str) else str(api_key)
 
-    async def generate(self, request: Union[GenerateRequest, LLMRequest]) -> Union[ProviderResult, LLMResponse]:
+    async def generate(self, request: GenerateRequest | LLMRequest) -> ProviderResult | LLMResponse:
         """Gửi request tới upstream LLM và chuẩn hóa kết quả."""
         if isinstance(request, LLMRequest):
             payload: dict[str, object] = {

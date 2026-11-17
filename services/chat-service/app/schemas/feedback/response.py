@@ -1,6 +1,7 @@
 """Feedback response schemas matching contracts/openapi/chat.yaml."""
 from datetime import datetime
-from typing import Optional, Any
+from typing import Any
+
 from pydantic import BaseModel, model_validator
 
 
@@ -10,7 +11,7 @@ class FeedbackResult(BaseModel):
     rating: str
     created_at: datetime
     # Backward compatibility aliases
-    id: Optional[str] = None
+    id: str | None = None
 
     @model_validator(mode="after")
     def populate_id(self):
@@ -22,7 +23,7 @@ class FeedbackResult(BaseModel):
 class FeedbackEnvelope(BaseModel):
     successful: bool = True
     data: FeedbackResult
-    error: Optional[Any] = None
+    error: Any | None = None
 
 
 # Backward-compatible alias

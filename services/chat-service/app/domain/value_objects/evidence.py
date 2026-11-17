@@ -1,5 +1,5 @@
 """Evidence chunk value object retrieved from RAG knowledge store."""
-from typing import Optional, Any
+from typing import Any
 
 
 class Evidence:
@@ -7,29 +7,29 @@ class Evidence:
 
     def __init__(
         self,
-        evidence_id: Optional[str] = None,
+        evidence_id: str | None = None,
         document_id: str = "",
-        document_name: Optional[str] = None,
-        document_version: Optional[int] = None,
-        page_from: Optional[int] = None,
-        page_to: Optional[int] = None,
-        text: Optional[str] = None,
-        retrieval_score: Optional[float] = None,
-        chunk_id: Optional[str] = None,
-        source_type: Optional[str] = None,
+        document_name: str | None = None,
+        document_version: int | None = None,
+        page_from: int | None = None,
+        page_to: int | None = None,
+        text: str | None = None,
+        retrieval_score: float | None = None,
+        chunk_id: str | None = None,
+        source_type: str | None = None,
         # Alternate/camelCase kwargs for flexibility
-        evidenceId: Optional[str] = None,
-        documentId: Optional[str] = None,
-        documentName: Optional[str] = None,
-        documentVersion: Optional[int] = None,
-        pageFrom: Optional[int] = None,
-        pageTo: Optional[int] = None,
-        retrievalScore: Optional[float] = None,
-        chunkId: Optional[str] = None,
-        source_title: Optional[str] = None,
-        content: Optional[str] = None,
-        score: Optional[float] = None,
-        page_number: Optional[int] = None,
+        evidenceId: str | None = None,
+        documentId: str | None = None,
+        documentName: str | None = None,
+        documentVersion: int | None = None,
+        pageFrom: int | None = None,
+        pageTo: int | None = None,
+        retrievalScore: float | None = None,
+        chunkId: str | None = None,
+        source_title: str | None = None,
+        content: str | None = None,
+        score: float | None = None,
+        page_number: int | None = None,
         **kwargs: Any,
     ):
         raw_eid = (
@@ -202,7 +202,7 @@ class Evidence:
         return self._document_name
 
     @property
-    def page_number(self) -> Optional[int]:
+    def page_number(self) -> int | None:
         return self._page_from
 
     @classmethod
@@ -231,7 +231,7 @@ class Evidence:
             f"retrieval_score={self.retrieval_score})"
         )
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Evidence):
             return False
         return (

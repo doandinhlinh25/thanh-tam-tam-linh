@@ -1,9 +1,10 @@
 """Central API router aggregating all controller endpoints."""
 from fastapi import APIRouter
-from app.api.controllers.health_controller import router as health_router
+
 from app.api.controllers.chat_controller import router as chat_router
 from app.api.controllers.conversation_controller import router as conversation_router
 from app.api.controllers.feedback_controller import router as feedback_router
+from app.api.controllers.health_controller import router as health_router
 from app.api.controllers.llm_controller import router as llm_router
 
 api_router = APIRouter()

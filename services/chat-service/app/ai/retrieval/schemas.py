@@ -1,7 +1,8 @@
 """Data schemas for retrieval requests and evidence payloads."""
 import uuid
-from typing import List, Optional, Any
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SearchRequest(BaseModel):
@@ -13,8 +14,8 @@ class SearchRequest(BaseModel):
     actor_user_id: str = Field(default="", alias="actorUserId")
     query: str
     candidate_k: int = Field(default=8, alias="candidateK")
-    request_id: Optional[str] = Field(default=None, alias="requestId")
-    expected_index_version: Optional[str] = Field(default=None, alias="expectedIndexVersion")
+    request_id: str | None = Field(default=None, alias="requestId")
+    expected_index_version: str | None = Field(default=None, alias="expectedIndexVersion")
 
     def to_payload(self) -> dict[str, Any]:
         """Convert to strict camelCase payload expected by Document Service."""
@@ -34,8 +35,8 @@ class SearchRequest(BaseModel):
 class RetrievalRequest(BaseModel):
     query: str
     tenant_id: str
-    course_id: Optional[str] = None
-    user_id: Optional[str] = None
+    course_id: str | None = None
+    user_id: str | None = None
     top_k: int = 8
 
 
@@ -45,8 +46,8 @@ class RetrievedChunkSchema(BaseModel):
     source_title: str
     content: str
     score: float
-    page_number: Optional[int] = None
+    page_number: int | None = None
 
 
 class RetrievalResponse(BaseModel):
-    chunks: List[RetrievedChunkSchema]
+    chunks: list[RetrievedChunkSchema]

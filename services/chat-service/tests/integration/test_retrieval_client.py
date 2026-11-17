@@ -1,14 +1,15 @@
 """Integration tests for RetrievalServiceClient."""
-import pytest
 import httpx
+import pytest
+
 from app.ai.retrieval.client import RetrievalClient
 from app.ai.retrieval.schemas import SearchRequest
 from app.domain.value_objects.evidence import Evidence
 from app.integrations.retrieval_service.exceptions import (
-    RetrievalServiceUnavailableException,
-    RetrievalTimeoutException,
     RetrievalClientException,
     RetrievalServiceException,
+    RetrievalServiceUnavailableException,
+    RetrievalTimeoutException,
 )
 
 
@@ -222,11 +223,11 @@ async def test_retrieval_client_504_gateway_timeout():
 
 # --- Real Network Socket Integration Tests (Deep Socket Verification) ---
 
-import threading
+import asyncio
 import http.server
 import json
+import threading
 import time
-import asyncio
 
 
 class _LiveRetrievalHttpServer:

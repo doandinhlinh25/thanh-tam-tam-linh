@@ -1,5 +1,4 @@
 """Unit tests for EvidenceGate."""
-import pytest
 from app.ai.evidence_gate import EvidenceGate
 from app.domain.value_objects.evidence import Evidence
 

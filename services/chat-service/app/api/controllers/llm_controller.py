@@ -7,20 +7,25 @@ import uuid
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.core.config import Settings, get_settings
 from app.ai.llm.base import LLMProvider
 from app.ai.llm.providers.openai_provider import OpenAIProvider
+from app.core.config import Settings, get_settings
 from app.schemas.llm import ErrorBody, GenerateRequest, GenerateResponse, Output
 from app.services.errors import LLMServiceError
 from app.services.llm_service import LLMService
 
 router = APIRouter(tags=["LLM"])
 bearer = HTTPBearer(auto_error=False)
+_SETTINGS_DEPENDENCY = Depends(get_settings)
+_BEARER_DEPENDENCY = Depends(bearer)
 
 
-def get_provider(settings: Settings = Depends(get_settings)) -> LLMProvider:
+def get_provider(settings: Settings = _SETTINGS_DEPENDENCY) -> LLMProvider:
     """Tạo provider mặc định; test có thể override dependency này."""
     return OpenAIProvider(settings)
+
+
+_PROVIDER_DEPENDENCY = Depends(get_provider)
 
 
 def request_id_from_header(value: str | None) -> str:
@@ -66,9 +71,9 @@ class LLMServiceErrorWithStatus(LLMServiceError):
 async def generate(
     payload: GenerateRequest,
     request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
-    settings: Settings = Depends(get_settings),
-    provider: LLMProvider = Depends(get_provider),
+    credentials: HTTPAuthorizationCredentials | None = _BEARER_DEPENDENCY,
+    settings: Settings = _SETTINGS_DEPENDENCY,
+    provider: LLMProvider = _PROVIDER_DEPENDENCY,
     x_request_id: str | None = Header(default=None),
 ) -> GenerateResponse:
     """Xác thực bearer token rồi gọi application service."""

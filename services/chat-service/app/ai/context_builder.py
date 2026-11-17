@@ -1,12 +1,12 @@
 """Builds prompt context from validated evidence chunks."""
-from typing import List, Any
+from typing import Any
 
 
 class ContextBuilder:
     """Builds formatted prompt context from validated evidence chunks."""
 
     @staticmethod
-    def build_context(evidence_list: List[Any]) -> str:
+    def build_context(evidence_list: list[Any]) -> str:
         valid_list = [ev for ev in (evidence_list or []) if ev is not None]
         if not valid_list:
             return ""

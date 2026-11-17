@@ -1,21 +1,22 @@
 """End-to-end RAG AI Pipeline orchestration."""
 import time
 from dataclasses import dataclass, field
-from typing import Optional, List, Any, Union
+from types import TracebackType
+from typing import Any, Self
 
-from app.domain.value_objects.citation import ChatCitation
-from app.domain.value_objects.tenant_context import TenantContext
-from app.ai.retrieval.client import RetrievalClient
-from app.ai.retrieval.schemas import SearchRequest
-from app.ai.evidence_gate import EvidenceGate
-from app.ai.context_builder import ContextBuilder
-from app.ai.citation_validator import CitationValidator
 from app.ai.answer_validator import AnswerValidator
-from app.ai.refusal_policy import RefusalPolicy
-from app.ai.prompts.loader import load_prompt
+from app.ai.citation_validator import CitationValidator
+from app.ai.context_builder import ContextBuilder
+from app.ai.evidence_gate import EvidenceGate
 from app.ai.llm.base import BaseLLMProvider
 from app.ai.llm.factory import LLMFactory
-from app.ai.llm.schemas import LLMRequest, LLMMessage
+from app.ai.llm.schemas import LLMMessage, LLMRequest
+from app.ai.prompts.loader import load_prompt
+from app.ai.refusal_policy import RefusalPolicy
+from app.ai.retrieval.client import RetrievalClient
+from app.ai.retrieval.schemas import SearchRequest
+from app.domain.value_objects.citation import ChatCitation
+from app.domain.value_objects.tenant_context import TenantContext
 
 
 @dataclass
@@ -23,7 +24,7 @@ class PipelineResult:
     """Structured result returned by AIPipeline."""
     result_state: str  # "answered" | "insufficient_evidence"
     answer: str
-    citations: List[ChatCitation] = field(default_factory=list)
+    citations: list[ChatCitation] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -62,12 +63,12 @@ class AIPipeline:
 
     def __init__(
         self,
-        retrieval_client: Optional[RetrievalClient] = None,
-        evidence_gate: Optional[EvidenceGate] = None,
-        context_builder: Optional[ContextBuilder] = None,
-        citation_validator: Optional[CitationValidator] = None,
-        answer_validator: Optional[AnswerValidator] = None,
-        llm_provider: Optional[BaseLLMProvider] = None,
+        retrieval_client: RetrievalClient | None = None,
+        evidence_gate: EvidenceGate | None = None,
+        context_builder: ContextBuilder | None = None,
+        citation_validator: CitationValidator | None = None,
+        answer_validator: AnswerValidator | None = None,
+        llm_provider: BaseLLMProvider | None = None,
         min_confidence: float = 0.65,
     ):
         self.retrieval_client = retrieval_client or RetrievalClient()
@@ -85,7 +86,7 @@ class AIPipeline:
         return self._llm_provider
 
     async def run(
-        self, user_query: str, tenant_context: Union[TenantContext, dict[str, Any]]
+        self, user_query: str, tenant_context: TenantContext | dict[str, Any]
     ) -> PipelineResult:
         """Execute end-to-end RAG pipeline with evidence gating and citation validation."""
         start_time = time.perf_counter()
@@ -270,8 +271,13 @@ class AIPipeline:
         """Alias for close()."""
         await self.close()
 
-    async def __aenter__(self) -> "AIPipeline":
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         await self.close()

@@ -1,12 +1,57 @@
+import os
+import uuid
+from datetime import UTC
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
+from app.ai.llm.base import ProviderResult
+from app.api.controllers.llm_controller import get_provider
 from app.core.config import Settings, get_settings
 from app.main import app
-from app.api.controllers.llm_controller import get_provider
-from app.ai.llm.base import ProviderResult
 from app.schemas.llm import Usage
+
+
+@pytest.fixture
+def mongo_test_uri():
+    uri = os.getenv("MONGODB_TEST_URI")
+    if not uri:
+        pytest.skip("MONGODB_TEST_URI is not configured; replica-set integration tests not run")
+    return uri
+
+
+@pytest_asyncio.fixture
+async def mongo_uow(mongo_test_uri):
+    """Isolated database on the real replica-set integration deployment."""
+
+    from bson.codec_options import CodecOptions
+    from pymongo import AsyncMongoClient
+
+    from app.dependencies import get_uow
+    from app.integrations.database.unit_of_work import UnitOfWork
+    from scripts.mongodb_migrate import ensure_indexes
+
+    client = AsyncMongoClient(mongo_test_uri, serverSelectionTimeoutMS=2000)
+    try:
+        hello = await client.admin.command("hello")
+        if hello.get("setName") != "rs0" or not hello.get("isWritablePrimary"):
+            pytest.fail("MongoDB integration target is not a writable rs0 replica-set primary")
+        database = client.get_database(
+            f"tt_chat_test_{uuid.uuid4().hex}",
+            codec_options=CodecOptions(tz_aware=True, tzinfo=UTC),
+        )
+        await ensure_indexes(database)
+        uow = UnitOfWork(client, database)
+        yield uow
+    finally:
+        if "uow" in locals():
+            await uow.close()
+        from app.main import app
+        app.dependency_overrides.pop(get_uow, None)
+        if "database" in locals():
+            await client.drop_database(database.name)
+        await client.close()
 
 
 class FakeProvider:

@@ -1,8 +1,10 @@
 """Global error handlers mapping exceptions to standard API failure responses."""
 import uuid
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+
 from app.core.exceptions import AppBaseException
 from app.services.errors import LLMServiceError
 

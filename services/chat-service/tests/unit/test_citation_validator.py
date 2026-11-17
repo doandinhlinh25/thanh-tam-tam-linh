@@ -1,9 +1,10 @@
 """Unit tests for CitationValidator."""
 import pytest
+
 from app.ai.citation_validator import CitationValidator
-from app.domain.value_objects.evidence import Evidence
-from app.domain.value_objects.citation import ChatCitation
 from app.domain.exceptions import CitationVerificationFailedException
+from app.domain.value_objects.citation import ChatCitation
+from app.domain.value_objects.evidence import Evidence
 
 
 def test_citation_validator_placeholder():

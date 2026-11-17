@@ -1,11 +1,11 @@
 """Core exceptions hierarchy."""
-from typing import Optional
+
 
 class AppBaseException(Exception):
     status_code: int = 500
     error_code: str = "INTERNAL_SERVER_ERROR"
 
-    def __init__(self, message: str, details: Optional[dict] = None):
+    def __init__(self, message: str, details: dict | None = None):
         super().__init__(message)
         self.message = message
         self.details = details or {}

@@ -1,6 +1,6 @@
 """Citation value objects linking answer statements to source chunks."""
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -9,7 +9,7 @@ class Citation:
     chunk_id: str
     title: str
     snippet: str
-    page_number: Optional[int] = None
+    page_number: int | None = None
 
 
 @dataclass(frozen=True)

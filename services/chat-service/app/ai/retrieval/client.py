@@ -1,12 +1,14 @@
 """Client for interacting with Retrieval Service."""
 import uuid
-from typing import Optional, Union, List, Any
+from types import TracebackType
+from typing import Any, Self
+
 import httpx
 
+from app.ai.retrieval.mapper import RetrievalMapper
+from app.ai.retrieval.schemas import RetrievalRequest, SearchRequest
 from app.core.config import get_settings
 from app.domain.value_objects.evidence import Evidence
-from app.ai.retrieval.schemas import SearchRequest, RetrievalRequest
-from app.ai.retrieval.mapper import RetrievalMapper
 from app.integrations.retrieval_service.http_client import RetrievalServiceHttpClient
 
 
@@ -15,9 +17,9 @@ class RetrievalClient:
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        http_client: Optional[Union[httpx.AsyncClient, RetrievalServiceHttpClient]] = None,
-        timeout: Optional[float] = None,
+        base_url: str | None = None,
+        http_client: httpx.AsyncClient | RetrievalServiceHttpClient | None = None,
+        timeout: float | None = None,
     ):
         settings = get_settings()
         self.base_url = (base_url or getattr(settings, "RETRIEVAL_SERVICE_URL", "http://localhost:8001")).rstrip("/")
@@ -32,8 +34,8 @@ class RetrievalClient:
 
     async def search(
         self,
-        request: Union[SearchRequest, RetrievalRequest, dict[str, Any]],
-    ) -> List[Evidence]:
+        request: SearchRequest | RetrievalRequest | dict[str, Any],
+    ) -> list[Evidence]:
         """Search authorized evidence candidates conforming to Document Service contract."""
         payload = self._build_search_payload(request)
         response_data = await self.service_http_client.post_search(payload)
@@ -41,13 +43,13 @@ class RetrievalClient:
 
     async def retrieve(
         self,
-        request: Union[SearchRequest, RetrievalRequest, dict[str, Any]],
-    ) -> List[Evidence]:
+        request: SearchRequest | RetrievalRequest | dict[str, Any],
+    ) -> list[Evidence]:
         """Retrieve evidence candidates for RAG pipeline (primary interface)."""
         return await self.search(request)
 
     def _build_search_payload(
-        self, request: Union[SearchRequest, RetrievalRequest, dict[str, Any]]
+        self, request: SearchRequest | RetrievalRequest | dict[str, Any]
     ) -> dict[str, Any]:
         """Format request into structured SearchRequest adhering strictly to OpenAPI contract."""
         if isinstance(request, SearchRequest):
@@ -115,8 +117,13 @@ class RetrievalClient:
         """Alias for close()."""
         await self.close()
 
-    async def __aenter__(self) -> "RetrievalClient":
+    async def __aenter__(self) -> Self:
         return self
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         await self.close()

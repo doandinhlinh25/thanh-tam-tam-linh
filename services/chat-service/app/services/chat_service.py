@@ -1,18 +1,16 @@
 """Chat service orchestrating RAG query workflow and persistence."""
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any, Callable
+from datetime import UTC, datetime, timedelta
+from typing import Any, Self
 
-from app.core.exceptions import NotFoundException, ConflictException
+from app.ai.pipeline import AIPipeline, PipelineResult
+from app.core.exceptions import ConflictException, NotFoundException
 from app.domain.entities.conversation import Conversation
 from app.domain.entities.message import Message
-from app.domain.value_objects.citation import ChatCitation
-from app.domain.value_objects.tenant_context import TenantContext
 from app.domain.repositories.conversation_repository import IConversationRepository
 from app.domain.repositories.message_repository import IMessageRepository
-from app.ai.pipeline import AIPipeline, PipelineResult
-from app.integrations.database.session import AsyncSessionLocal, ensure_db_initialized
+from app.domain.value_objects.tenant_context import TenantContext
 from app.integrations.database.unit_of_work import UnitOfWork
 
 
@@ -25,10 +23,10 @@ class ChatServiceResult(PipelineResult):
     source_scope: str = "course_only"
     status: str = "answered"
     successful: bool = True
-    data: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[Any] = None
+    data: dict[str, Any] = field(default_factory=dict)
+    error: Any | None = None
     refused: bool = False
-    refusal_reason: Optional[str] = None
+    refusal_reason: str | None = None
 
     def __getitem__(self, item: str) -> Any:
         if item in (
@@ -45,7 +43,7 @@ class ChatServiceResult(PipelineResult):
             return getattr(self, item)
         return super().__getitem__(item)
 
-    def to_envelope(self) -> Dict[str, Any]:
+    def to_envelope(self) -> dict[str, Any]:
         return {
             "successful": self.successful,
             "data": self.data,
@@ -79,50 +77,40 @@ class ChatService:
 
     def __init__(
         self,
-        pipeline: Optional[AIPipeline] = None,
-        uow: Optional[UnitOfWork] = None,
-        conversation_repo: Optional[IConversationRepository] = None,
-        message_repo: Optional[IMessageRepository] = None,
-        session_factory: Optional[Callable] = None,
+        pipeline: AIPipeline | None = None,
+        uow: UnitOfWork | None = None,
+        conversation_repo: IConversationRepository | None = None,
+        message_repo: IMessageRepository | None = None,
+        owns_pipeline: bool | None = None,
     ):
-        self.pipeline = pipeline or AIPipeline()
+        self._owns_pipeline = pipeline is None if owns_pipeline is None else owns_pipeline
+        self._pipeline_closed = False
+        self.pipeline = pipeline if pipeline is not None else AIPipeline()
         self.uow = uow
         self.conversation_repo = conversation_repo
         self.message_repo = message_repo
-        self.session_factory = session_factory or AsyncSessionLocal
 
     async def answer_question(
         self,
         context: TenantContext,
         question: str,
-        conversation_id: Optional[str] = None,
-        source_scope: Optional[str] = None,
+        conversation_id: str | None = None,
+        source_scope: str | None = None,
     ) -> ChatServiceResult:
         """Answer user question using RAG AI pipeline with persistence."""
         scope = source_scope or "course_only"
         active_conv_id = conversation_id or getattr(context, "conversation_id", None)
+        is_existing_conversation = bool(active_conv_id)
 
-        session_to_close = None
         conv_repo = self.conversation_repo
         msg_repo = self.message_repo
         active_uow = self.uow
 
+        if active_uow is None:
+            raise RuntimeError("Chat persistence unit of work is required")
         if not conv_repo or not msg_repo:
-            if active_uow:
-                conv_repo = active_uow.conversations
-                msg_repo = active_uow.messages
-            else:
-                try:
-                    await ensure_db_initialized()
-                    session = self.session_factory()
-                    session_to_close = session
-                    active_uow = UnitOfWork(session)
-                    conv_repo = active_uow.conversations
-                    msg_repo = active_uow.messages
-                except Exception:
-                    # If database is completely unavailable and not configured, run pipeline only
-                    conv_repo = None
-                    msg_repo = None
+            conv_repo = active_uow.conversations
+            msg_repo = active_uow.messages
 
         try:
             # 1. Resolve or create conversation
@@ -147,7 +135,7 @@ class ChatService:
             elif not active_conv_id:
                 active_conv_id = f"conv-{uuid.uuid4().hex[:12]}"
                 if conv_repo:
-                    now = datetime.now(timezone.utc)
+                    now = datetime.now(UTC)
                     conv = Conversation(
                         id=active_conv_id,
                         tenant_id=context.tenant_id,
@@ -158,20 +146,14 @@ class ChatService:
                         created_at=now,
                         updated_at=now,
                     )
-                    await conv_repo.save(conv)
 
             # 2. Persist incoming user question
             user_msg_id = f"msg-{uuid.uuid4().hex[:12]}"
-            if msg_repo:
-                user_msg = Message(
-                    id=user_msg_id,
-                    conversation_id=active_conv_id,
-                    role="user",
-                    content=question,
-                    created_at=datetime.now(timezone.utc),
-                )
-                await msg_repo.save(user_msg)
-
+            # MongoDB stores BSON Date at millisecond precision. Capture the
+            # persisted precision before the pipeline so fast responses and
+            # equal-millisecond clocks cannot sort the assistant first.
+            user_now = datetime.now(UTC)
+            user_created_at = user_now.replace(microsecond=(user_now.microsecond // 1000) * 1000)
             # 3. Execute AIPipeline.run()
             pipeline_res = await self.pipeline.run(user_query=question, tenant_context=context)
 
@@ -180,30 +162,42 @@ class ChatService:
             status = pipeline_res.result_state
             is_refused = (status == "insufficient_evidence")
             refusal_reason = "insufficient_evidence" if is_refused else None
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
+            assistant_created_at = now.replace(microsecond=(now.microsecond // 1000) * 1000)
+            assistant_created_at = max(assistant_created_at, user_created_at + timedelta(milliseconds=1))
 
-            if msg_repo:
-                asst_msg = Message(
-                    id=asst_msg_id,
-                    conversation_id=active_conv_id,
-                    role="assistant",
-                    content=pipeline_res.answer,
-                    refused=is_refused,
-                    refusal_reason=refusal_reason,
-                    citations=pipeline_res.citations,
-                    status=status,
-                    created_at=now,
-                )
-                await msg_repo.save(asst_msg)
+            asst_msg = Message(id=asst_msg_id, conversation_id=active_conv_id, role="assistant",
+                content=pipeline_res.answer, refused=is_refused, refusal_reason=refusal_reason,
+                citations=pipeline_res.citations, status=status, created_at=assistant_created_at)
 
             # Update conversation timestamp
             if conv and conv_repo:
-                conv.last_message_at = now
-                conv.updated_at = now
-                await conv_repo.save(conv)
+                conv.last_message_at = assistant_created_at
+                conv.updated_at = assistant_created_at
 
-            if active_uow:
-                await active_uow.commit()
+            # Begin the transaction only after retrieval/LLM has completed.
+            await active_uow.begin()
+            # Recheck existing conversation ownership inside the transaction.
+            if is_existing_conversation:
+                owned = await conv_repo.get_by_id(
+                    conversation_id=active_conv_id,
+                    tenant_id=context.tenant_id,
+                    user_id=context.user_id,
+                )
+                if owned is None:
+                    raise NotFoundException(f"Conversation {active_conv_id} not found")
+            if conv is not None:
+                await conv_repo.save(conv)
+            user_msg = Message(
+                id=user_msg_id,
+                conversation_id=active_conv_id,
+                role="user",
+                content=question,
+                created_at=user_created_at,
+            )
+            await msg_repo.save(user_msg)
+            await msg_repo.save(asst_msg)
+            await active_uow.commit()
 
             # 5. Build OpenAPI response envelope
             formatted_citations = []
@@ -265,20 +259,18 @@ class ChatService:
             if active_uow:
                 await active_uow.rollback()
             raise
-        finally:
-            if session_to_close:
-                await session_to_close.close()
 
     async def close(self) -> None:
         """Close underlying pipeline resources."""
-        if hasattr(self.pipeline, "close"):
+        if self._owns_pipeline and not self._pipeline_closed and hasattr(self.pipeline, "close"):
+            self._pipeline_closed = True
             await self.pipeline.close()
 
     async def aclose(self) -> None:
         """Alias for close()."""
         await self.close()
 
-    async def __aenter__(self) -> "ChatService":
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:

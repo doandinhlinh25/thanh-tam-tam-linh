@@ -1,6 +1,7 @@
 """Exports evaluation results to JSON format."""
 import json
 
+
 class JsonReporter:
     @staticmethod
     def export(results: dict, filepath: str):

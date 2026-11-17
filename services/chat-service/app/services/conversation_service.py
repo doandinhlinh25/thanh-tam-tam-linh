@@ -1,10 +1,13 @@
 """Conversation service handling thread lifecycle and message history."""
-import base64
-from typing import Optional, List, Dict, Any
+from typing import Any
+
+from pymongo.errors import PyMongoError
+
 from app.core.exceptions import NotFoundException
+from app.core.pagination import encode_cursor
 from app.domain.repositories.conversation_repository import IConversationRepository
-from app.domain.repositories.message_repository import IMessageRepository
 from app.domain.repositories.feedback_repository import IFeedbackRepository
+from app.domain.repositories.message_repository import IMessageRepository
 from app.integrations.database.unit_of_work import UnitOfWork
 
 
@@ -25,8 +28,8 @@ class ConversationService:
         self,
         conversation_repo: IConversationRepository,
         message_repo: IMessageRepository,
-        feedback_repo: Optional[IFeedbackRepository] = None,
-        uow: Optional[UnitOfWork] = None,
+        feedback_repo: IFeedbackRepository | None = None,
+        uow: UnitOfWork | None = None,
     ):
         self.conversation_repo = conversation_repo
         self.message_repo = message_repo
@@ -37,11 +40,11 @@ class ConversationService:
         self,
         tenant_id: str,
         user_id: str,
-        course_id: Optional[str] = None,
-        source_scope: Optional[str] = None,
+        course_id: str | None = None,
+        source_scope: str | None = None,
         limit: int = 20,
-        cursor: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
         """List conversations owned by authenticated user in active tenant."""
         if limit < 1:
             limit = 20
@@ -59,8 +62,7 @@ class ConversationService:
         if len(items) > limit:
             last_item = items[limit - 1]
             if last_item.created_at:
-                iso_str = last_item.created_at.isoformat()
-                next_cursor = base64.b64encode(iso_str.encode()).decode()
+                next_cursor = encode_cursor(last_item.created_at, last_item.id)
             items = items[:limit]
 
         result_items = [
@@ -91,8 +93,8 @@ class ConversationService:
         user_id: str,
         conversation_id: str,
         limit: int = 50,
-        cursor: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
         """Retrieve conversation detail and message history with owner access verification."""
         conv = await self.conversation_repo.get_by_id(
             conversation_id=conversation_id,
@@ -107,6 +109,8 @@ class ConversationService:
         fetch_limit = limit + 1
         messages = await self.message_repo.list_by_conversation(
             conversation_id=conversation_id,
+            tenant_id=tenant_id,
+            owner_user_id=user_id,
             limit=fetch_limit,
             cursor=cursor,
         )
@@ -115,8 +119,7 @@ class ConversationService:
         if len(messages) > limit:
             last_msg = messages[limit - 1]
             if last_msg.created_at:
-                iso_str = last_msg.created_at.isoformat()
-                next_cursor = base64.b64encode(iso_str.encode()).decode()
+                next_cursor = encode_cursor(last_msg.created_at, last_msg.id)
             messages = messages[:limit]
 
         formatted_messages = []
@@ -177,34 +180,46 @@ class ConversationService:
         tenant_id: str,
         user_id: str,
         conversation_id: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Delete conversation and associated messages/feedback with owner verification."""
-        conv = await self.conversation_repo.get_by_id(
-            conversation_id=conversation_id,
-            tenant_id=tenant_id,
-            user_id=user_id,
-        )
-        if not conv:
-            raise NotFoundException(f"Conversation {conversation_id} not found")
+        for attempt in range(3):
+            try:
+                if self.uow:
+                    await self.uow.begin()
+                conv = await self.conversation_repo.get_by_id(
+                    conversation_id=conversation_id,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                )
+                if not conv:
+                    raise NotFoundException(f"Conversation {conversation_id} not found")
 
-        try:
-            if self.feedback_repo:
-                await self.feedback_repo.delete_by_conversation(conversation_id)
+                if self.feedback_repo:
+                    await self.feedback_repo.delete_by_conversation(conversation_id, tenant_id, user_id)
 
-            await self.message_repo.delete_by_conversation(conversation_id)
-            await self.conversation_repo.delete(
-                conversation_id=conversation_id,
-                tenant_id=tenant_id,
-                user_id=user_id,
-                hard_delete=True,
-            )
+                await self.message_repo.delete_by_conversation(conversation_id, tenant_id, user_id)
+                await self.conversation_repo.delete(
+                    conversation_id=conversation_id,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    hard_delete=True,
+                )
 
-            if self.uow:
-                await self.uow.commit()
-        except Exception:
-            if self.uow:
-                await self.uow.rollback()
-            raise
+                if self.uow:
+                    await self.uow.commit()
+                break
+            except PyMongoError as exc:
+                if self.uow:
+                    await self.uow.rollback()
+                retryable = bool(
+                    getattr(exc, "has_error_label", lambda _: False)("TransientTransactionError")
+                )
+                if not retryable or attempt == 2:
+                    raise
+            except Exception:
+                if self.uow:
+                    await self.uow.rollback()
+                raise
 
         return {
             "successful": True,

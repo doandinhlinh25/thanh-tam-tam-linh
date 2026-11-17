@@ -1,6 +1,7 @@
 """Exports evaluation results to CSV format."""
 import csv
 
+
 class CsvReporter:
     @staticmethod
     def export(records: list, filepath: str):

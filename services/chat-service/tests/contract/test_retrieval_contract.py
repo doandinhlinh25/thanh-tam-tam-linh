@@ -1,7 +1,8 @@
 """Contract tests for Retrieval Service integration."""
 import pytest
-from app.ai.retrieval.schemas import SearchRequest
+
 from app.ai.retrieval.mapper import RetrievalMapper
+from app.ai.retrieval.schemas import SearchRequest
 from app.domain.value_objects.evidence import Evidence
 
 
@@ -191,10 +192,15 @@ def test_evidence_gate_handles_malformed_scores_without_crashing():
 @pytest.mark.asyncio
 async def test_retrieval_http_client_handles_successful_false_envelope_on_200():
     """Verify RetrievalServiceHttpClient parses and rejects successful: false envelopes on HTTP 200."""
-    import pytest
     import httpx
-    from app.integrations.retrieval_service.http_client import RetrievalServiceHttpClient
-    from app.integrations.retrieval_service.exceptions import RetrievalServiceUnavailableException
+    import pytest
+
+    from app.integrations.retrieval_service.exceptions import (
+        RetrievalServiceUnavailableException,
+    )
+    from app.integrations.retrieval_service.http_client import (
+        RetrievalServiceHttpClient,
+    )
 
     error_response = {
         "successful": False,

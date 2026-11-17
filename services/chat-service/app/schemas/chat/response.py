@@ -1,5 +1,6 @@
 """Chat response schemas matching contracts/openapi/chat.yaml and backward compatibility."""
-from typing import List, Optional, Any
+from typing import Any
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -7,14 +8,14 @@ class CitationSchema(BaseModel):
     document_id: str
     chunk_id: str
     title: str
-    page_number: Optional[int] = None
+    page_number: int | None = None
     snippet: str
-    citation_id: Optional[str] = None
-    evidence_id: Optional[str] = None
-    source_type: Optional[str] = "official"
-    document_name: Optional[str] = None
-    page_from: Optional[int] = None
-    page_to: Optional[int] = None
+    citation_id: str | None = None
+    evidence_id: str | None = None
+    source_type: str | None = "official"
+    document_name: str | None = None
+    page_from: int | None = None
+    page_to: int | None = None
 
     @model_validator(mode="after")
     def populate_fields(self):
@@ -42,15 +43,15 @@ class ChatResponse(BaseModel):
     message_id: str
     answer: str
     refused: bool = False
-    refusal_reason: Optional[str] = None
-    citations: List[CitationSchema] = Field(default_factory=list)
-    status: Optional[str] = None
-    source_scope: Optional[str] = "course_only"
-    pipeline: Optional[dict] = None
-    request_id: Optional[str] = None
-    successful: Optional[bool] = None
-    data: Optional[dict] = None
-    error: Optional[Any] = None
+    refusal_reason: str | None = None
+    citations: list[CitationSchema] = Field(default_factory=list)
+    status: str | None = None
+    source_scope: str | None = "course_only"
+    pipeline: dict | None = None
+    request_id: str | None = None
+    successful: bool | None = None
+    data: dict | None = None
+    error: Any | None = None
 
     @model_validator(mode="after")
     def populate_envelope(self):

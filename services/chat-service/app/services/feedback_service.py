@@ -1,7 +1,8 @@
 """Feedback service for storing and analyzing user feedback."""
 import uuid
-from datetime import datetime, timezone
-from typing import Optional, Union, Dict, Any
+from datetime import UTC, datetime
+from typing import Any
+
 from app.core.exceptions import NotFoundException, ValidationException
 from app.domain.entities.feedback import Feedback
 from app.domain.repositories.feedback_repository import IFeedbackRepository
@@ -13,8 +14,8 @@ class FeedbackService:
     def __init__(
         self,
         feedback_repo: IFeedbackRepository,
-        message_repo: Optional[IMessageRepository] = None,
-        uow: Optional[UnitOfWork] = None,
+        message_repo: IMessageRepository | None = None,
+        uow: UnitOfWork | None = None,
     ):
         self.feedback_repo = feedback_repo or (uow.feedbacks if uow else None)
         self.message_repo = message_repo or (uow.messages if uow else None)
@@ -24,15 +25,18 @@ class FeedbackService:
         self,
         message_id: str,
         user_id: str,
-        rating: Union[str, int],
-        comment: Optional[str] = None,
-        tenant_id: Optional[str] = None,
-        reason: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        rating: str | int,
+        comment: str | None = None,
+        tenant_id: str | None = None,
+        reason: str | None = None,
+    ) -> dict[str, Any]:
         """Record or update user feedback for an assistant message."""
+        # Keep feedback validation and upsert in one short transaction.
+        if self.uow:
+            await self.uow.begin()
         # 1. Verify message exists and is an assistant message
         if self.message_repo:
-            msg = await self.message_repo.get_by_id(message_id)
+            msg = await self.message_repo.get_by_id(message_id, tenant_id or "", user_id)
             if not msg:
                 raise NotFoundException(f"Message {message_id} not found")
             role_str = msg.role.value if hasattr(msg.role, "value") else str(msg.role)
@@ -53,8 +57,8 @@ class FeedbackService:
             raise ValidationException("Comment cannot exceed 2000 characters")
 
         # 3. Check for existing feedback from this user for this message
-        existing = await self.feedback_repo.get_by_message_and_user(message_id, user_id)
-        now = datetime.now(timezone.utc)
+        existing = await self.feedback_repo.get_by_message_and_user(message_id, user_id, tenant_id or "")
+        now = datetime.now(UTC)
 
         if existing:
             fb = Feedback(

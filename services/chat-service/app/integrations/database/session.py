@@ -1,82 +1,66 @@
-"""Database engine and session lifecycle management."""
-import logging
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.pool import StaticPool
+"""MongoDB client lifecycle and database access."""
+from datetime import UTC
+from typing import Any
+
+from bson.codec_options import CodecOptions
+from pymongo import AsyncMongoClient
+
 from app.core.config import settings
-from app.repositories.models.base import Base
-# Ensure all models are registered with Base.metadata
-import app.repositories.models.conversation_model  # noqa: F401
-import app.repositories.models.message_model  # noqa: F401
-import app.repositories.models.feedback_model  # noqa: F401
 
-logger = logging.getLogger(__name__)
+_client: AsyncMongoClient | None = None
+_database: Any | None = None
 
 
-def _normalize_db_url(url: str) -> str:
-    if url.startswith("postgresql://"):
-        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    if url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql+asyncpg://", 1)
-    return url
+async def initialize_database() -> Any:
+    """Connect to the configured MongoDB and verify the deployment is reachable."""
+    global _client, _database
+    if _client is not None and _database is not None:
+        await _client.admin.command("ping")
+        return _database
 
-
-def _create_engine():
-    db_url = _normalize_db_url(settings.DATABASE_URL)
+    client = AsyncMongoClient(
+        settings.MONGODB_URI,
+        serverSelectionTimeoutMS=5_000,
+    )
     try:
-        if "postgresql" in db_url:
-            import asyncpg  # noqa: F401
-        eng = create_async_engine(db_url, echo=False)
-        return eng
-    except Exception as e:
-        logger.warning(
-            "PostgreSQL driver or container not available, falling back to SQLite in-memory: %s",
-            e,
-        )
-        fallback_url = "sqlite+aiosqlite:///:memory:"
-        eng = create_async_engine(
-            fallback_url,
-            echo=False,
-            poolclass=StaticPool,
-            connect_args={"check_same_thread": False},
-        )
-        return eng
+        await client.admin.command("ping")
+    except Exception:
+        await client.close()
+        raise
+
+    _client = client
+    _database = client.get_database(
+        settings.MONGODB_DATABASE,
+        codec_options=CodecOptions(tz_aware=True, tzinfo=UTC),
+    )
+    return _database
 
 
-engine = _create_engine()
-AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-
-_db_initialized = False
-
-
-async def ensure_db_initialized():
-    """Ensure database schema tables are created with automatic SQLite fallback if container is offline."""
-    global _db_initialized, engine, AsyncSessionLocal
-    if not _db_initialized:
-        try:
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            _db_initialized = True
-        except Exception as e:
-            logger.warning(
-                "Database initialization failed (%s); falling back to in-memory SQLite",
-                e,
-            )
-            fallback_url = "sqlite+aiosqlite:///:memory:"
-            engine = create_async_engine(
-                fallback_url,
-                echo=False,
-                poolclass=StaticPool,
-                connect_args={"check_same_thread": False},
-            )
-            AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            _db_initialized = True
+async def get_database() -> Any:
+    """Return the process database handle, connecting or raising on failure."""
+    if _database is None:
+        return await initialize_database()
+    return _database
 
 
-async def get_db_session():
-    """FastAPI generator providing an async database session."""
-    await ensure_db_initialized()
-    async with AsyncSessionLocal() as session:
-        yield session
+def get_client() -> AsyncMongoClient:
+    """Return the active Mongo client for request-scoped sessions."""
+    if _client is None:
+        raise RuntimeError("MongoDB client has not been initialized")
+    return _client
 
+
+async def close_database() -> None:
+    """Close the process client and clear its references."""
+    global _client, _database
+    client = _client
+    _client = None
+    _database = None
+    if client is not None:
+        await client.close()
+
+
+# Kept as a small compatibility name for code/tests that explicitly initialize
+# the service database; this no longer creates tables or falls back to SQLite.
+async def ensure_db_initialized() -> Any:
+    return await initialize_database()

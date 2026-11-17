@@ -1,12 +1,12 @@
 """Validates LLM answer against hallucination and boundary rules."""
 import re
-from typing import Set
+from typing import ClassVar
 
 
 class AnswerValidator:
     """Ensures LLM answer adheres to boundary rules and does not hallucinate facts outside evidence."""
 
-    REFUSAL_INDICATORS = [
+    REFUSAL_INDICATORS: ClassVar[list[str]] = [
         "xin lỗi",
         "không chứa đủ thông tin",
         "không đủ thông tin",
@@ -20,7 +20,7 @@ class AnswerValidator:
         "rất tiếc",
     ]
 
-    INJECTION_OR_LEAK_PATTERNS = [
+    INJECTION_OR_LEAK_PATTERNS: ClassVar[list[re.Pattern[str]]] = [
         re.compile(r"bạn là trợ lý ai chuyên", re.IGNORECASE),
         re.compile(r"ignore\s+(all\s+)?previous\s+instructions", re.IGNORECASE),
         re.compile(r"system\s+prompt", re.IGNORECASE),
@@ -28,7 +28,7 @@ class AnswerValidator:
         re.compile(r"reveal\s+(secret|hidden|system)", re.IGNORECASE),
     ]
 
-    STOPWORDS: Set[str] = {
+    STOPWORDS: ClassVar[set[str]] = {
         "là", "và", "của", "có", "trong", "được", "cho", "với", "các", "những",
         "này", "đó", "một", "theo", "về", "đến", "từ", "khi", "như", "đã", "sẽ",
         "thì", "mà", "nếu", "bởi", "vì", "ra", "vào", "lại", "cũng",
@@ -36,7 +36,7 @@ class AnswerValidator:
         "for", "of", "and", "or", "by", "with", "from",
     }
 
-    CONTEXT_HEADER_WORDS: Set[str] = {"source", "content", "page", "pages", "unknown"}
+    CONTEXT_HEADER_WORDS: ClassVar[set[str]] = {"source", "content", "page", "pages", "unknown"}
 
     def validate(self, answer: str, context: str) -> bool:
         """Validate that the answer satisfies boundary rules and context faithfulness."""
@@ -83,7 +83,4 @@ class AnswerValidator:
         overlap_ratio = matched / len(substantive_words)
 
         # Disjoint answer (0% overlap with context) indicates hallucination
-        if overlap_ratio == 0.0:
-            return False
-
-        return True
+        return overlap_ratio != 0.0

@@ -1,17 +1,17 @@
 import pytest
 
+from app.api.controllers.llm_controller import get_provider
+from app.main import app
 from app.services.errors import (
+    LLMUnavailableError,
+    LLMUpstreamBadGatewayError,
     ProviderAuthError,
+    ProviderBadGatewayError,
     ProviderInvalidResponseError,
     ProviderRateLimitError,
     ProviderTimeoutError,
     ProviderUnavailableError,
-    ProviderBadGatewayError,
-    LLMUpstreamBadGatewayError,
-    LLMUnavailableError,
 )
-from app.api.controllers.llm_controller import get_provider
-from app.main import app
 
 try:
     from conftest import FakeProvider
