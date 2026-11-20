@@ -1,3 +1,82 @@
+# Test: final course-scoped demo chat UX verification
+
+Date: 2026-11-20
+Implementation tested: `f30b19f`
+Approved source base: `8f36675`
+**Overall status: PASS for the approved fixture-only frontend scope.**
+
+## Scope and environment
+
+User explicitly requested “tiếp tục test và review”, authorizing both stages sequentially. This is the completed Test stage, before starting Review. Standing authorization permits a separate local commit of each completed stage's report/handoff; no push, merge or PR is included.
+
+Continued `/tmp/thanh-fe-demo-chat-ux`, branch `thanh/fe-demo-chat-ux`. The tracked tree was clean at `f30b19f`; existing generated `apps/web/test-results/` was the only untracked content. Compared the actual approved feature diff and the final CSS/test fix, and read source/tests rather than relying only on the Cook report.
+
+Environment: Linux, Node `v24.14.0`, npm `11.9.0`, configured Playwright Chromium. Recorded SHA-256 hashes for all 45 tracked frontend source/config/test files; none changed during verification. No production code, test, config, dependency, backend or public contract changes were made.
+
+## Commands and observed results
+
+Commands from `apps/web` unless noted:
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| `npm run typecheck` | PASS, exit 0 | No TypeScript diagnostics. |
+| `npm test -- --run` | PASS, exit 0 | **56 tests / 5 files**, 6.26s. |
+| `npm run build` | PASS, exit 0 | 92 modules; production JS/CSS generated. |
+| `npm run test:e2e -- --workers=1 --output=/tmp/fe-chat-final-test-20261120/playwright` | PASS, exit 0 | **6/6 Chromium tests**, 15.1s; 390/768/1440px chat/citation/feedback plus entry/library, retry/history and permission/dependency journeys. |
+| `git diff --check` at worktree root | PASS, exit 0 | No whitespace errors. |
+| `git diff --exit-code -- apps/web contracts infrastructure packages services` | PASS, exit 0 | Implementation unchanged during Test. |
+| Frontend SHA-256 before/after comparison | PASS | All 45 tracked files unchanged. |
+
+No configured frontend lint/formatter script exists. Unchanged Node/OPA suites were not run. Real backend/session/CSRF/retrieval integration is outside the approved demo slice; no result here proves those unavailable services.
+
+## Acceptance criteria
+
+| Criterion | Status | Current evidence |
+| --- | --- | --- |
+| AC1 course context | PASS | Workspace tests and browser course/history selection use the correct assigned course and material context. |
+| AC2 distinct states | PASS | Scenario/component/E2E checks distinguish empty, pending, answered, insufficient evidence, technical, permission and dependency results; retry semantics are explicit. |
+| AC3 citation semantics | PASS | Multi-citation answered fixtures; errors/refusals expose no source/feedback; no fabricated source/download URL. |
+| AC4 accessible detail | PASS within tested browser | Real native modal, inert background, close focus, Tab/Shift+Tab, Escape/close/backdrop and focus restoration exercised in Chromium. |
+| AC5 duplicate/retry/draft | PASS | Per-course draft restore/clear, synchronous pending guard, disabled controls and retry replacing its original assistant response are asserted. |
+| AC6 course/history isolation | PASS within local demo state | Delayed response stays in its original course, history reselects that course, and ratings remain scoped. Fixture metadata is copied and explicitly not authorization proof. |
+| AC7 feedback states | PASS | Answer-only rating, successful submission, simulated failure preserving previous rating and retry applying intended choice. |
+| AC8 responsive/keyboard/UI quality | PASS for tested surface | Viewport/overflow/mobile-grid/focus checks at 390/768/1440px. All six visible drawer text elements now meet >=4.5:1; the prior Review F1 is reproduced by the expanded test before the fix and absent now. |
+| AC9 untrusted content/security | PASS within fixture boundary | Hostile answer/title/snippet/unsafe-link text remains literal; no injected HTML/link. No new live requests or token-storage/raw-HTML path. |
+| AC10 demo boundary | PASS | UI and API map identify fixture data, unprocessed personal files, simulated permissions, local feedback and unavailable real source access. |
+
+## Contrast regression results
+
+Current browser-computed ratios are identical at all three viewport widths:
+
+| Visible drawer text | Ratio |
+| --- | --- |
+| Eyebrow | **4.954033:1** |
+| Document title | 10.908883:1 |
+| Document-type label | 5.708172:1 |
+| Page label | 4.954033:1 |
+| Excerpt | 5.486109:1 |
+| Demo disclosure | 5.708172:1 |
+
+Permission/dependency badge assertions also pass (4.901223:1). The permanent regression loop now covers every visible drawer text element, including the previously missed eyebrow. Before-fix failure at 4.043699:1 is retained under `/tmp/fe-chat-eyebrow-fix-20261120/before`; no assertions or safeguards were weakened to obtain this pass.
+
+Inspected the current mobile drawer screenshot; content fits and the close control/focus indicator are visible. Current E2E also checks page exceptions and console errors in the three viewport journeys. No new failure was observed.
+
+## Regression analysis and limitations
+
+The earlier Test disclosure/metadata failures and Review eyebrow finding are fixed on `f30b19f`. This latest run supersedes their results for the current implementation while retaining the historical reports below. No remaining confirmed regression was found in the approved slice.
+
+This PASS is not production authorization, comprehensive WCAG certification or approval for live API integration. Screen readers, non-Chromium browsers, comprehensive theme contrast, extreme history sizes and full zoom/IME behavior remain unverified. Earlier temporary no-course/long-content probes remain supporting evidence on a prior revision; they were not counted as fresh tests in this run.
+
+## Evidence and next stage
+
+`/tmp/fe-chat-final-test-20261120/` contains `checks.json`, `e2e-check.json`, `source-hashes.json`, command logs, and `playwright/` screenshots/contrast JSON. Outputs were kept separate from previous Cook/Test/Review evidence and excluded from Git.
+
+Next: proceed to the independently conducted Review already explicitly requested by the user. No additional confirmation is required to start it. Commit only this completed Test record and handoff, preserving the tested source unchanged.
+
+---
+
+## Historical Test reports (superseded for the current revision)
+
 # Test — course-scoped demo chat UX (retest after Cook)
 
 Date: 2026-11-20
