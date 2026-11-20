@@ -113,3 +113,13 @@ Test worker may edit only its assigned E2E file; production changes remain singl
 - Report: `docs/reports/2026-11-20/2026-11-20-frontend-demo-chat-ux-cook-test-fixes.md`.
 - User subsequently requested local commits after every completed item. The completed related feature/code/tests/docs on this branch are authorized for a local commit; generated results and unrelated files are excluded. The resulting commit is recorded in Git history and the final response. No push/merge/PR authorized.
 - Next stage: fresh independent Test, then Review with stage go-ahead. Prior Test report is retained as historical evidence.
+
+## Review — 2026-11-20
+
+- Reviewed commit: `437a550`, approved source base `8f36675`. User asked to continue after the completed test runs. A separate agent independently reviewed the actual production/test diff; main verified evidence and the additional contrast probe.
+- Decision: **REQUEST CHANGES**, one Medium confirmed defect. Drawer heading eyebrow “NGUỒN THAM KHẢO MẪU” inherits #7772d9 on white and computes to 4.043699:1 at 390/1280px, below required 4.5:1. Existing contrast loop did not include this selector.
+- No new Critical/High correctness/security defect identified in the fixture-only scope. Earlier metadata/disclosure and permission/dependency fixes are verified.
+- Independently reran 18/18 adapter tests and 2/2 critical E2E (6.0s); both PASS. New eyebrow probe FAIL, exit1. No implementation/test/style files changed in Review.
+- Report: `docs/reports/2026-11-20/2026-11-20-frontend-demo-chat-ux-review.md`. Evidence: `/tmp/fe-chat-review-20261120/`.
+- Next: Cook a drawer-only eyebrow color override and include it in the browser contrast regression loop; then rerun affected checks. Review stage remains read-only for implementation.
+- User's standing authorization covers a local commit of this completed Review report/handoff; no push/merge/PR performed.
