@@ -92,7 +92,14 @@ for (const width of [390, 768, 1440]) {
     await expect(close).toBeFocused();
     await expect(dialog.getByText(/Chưa có đường dẫn xem hoặc tải tài liệu thật/)).toBeVisible();
     const contrastMeasurements = [];
-    for (const selector of [".citation-drawer-disclosure", ".citation-drawer-meta span"]) {
+    for (const selector of [
+      ".citation-drawer-heading .eyebrow",
+      ".citation-drawer-heading h2",
+      ".citation-drawer-meta span",
+      ".citation-drawer-meta strong",
+      ".citation-drawer-snippet",
+      ".citation-drawer-disclosure",
+    ]) {
       const measurement = await measureTextContrast(dialog.locator(selector));
       expect(measurement.ratio, `${selector} must meet normal-text contrast at ${width}px`).toBeGreaterThanOrEqual(4.5);
       contrastMeasurements.push({ selector, ...measurement });

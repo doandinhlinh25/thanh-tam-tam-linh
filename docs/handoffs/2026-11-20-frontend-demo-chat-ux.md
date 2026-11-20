@@ -123,3 +123,20 @@ Test worker may edit only its assigned E2E file; production changes remain singl
 - Report: `docs/reports/2026-11-20/2026-11-20-frontend-demo-chat-ux-review.md`. Evidence: `/tmp/fe-chat-review-20261120/`.
 - Next: Cook a drawer-only eyebrow color override and include it in the browser contrast regression loop; then rerun affected checks. Review stage remains read-only for implementation.
 - User's standing authorization covers a local commit of this completed Review report/handoff; no push/merge/PR performed.
+
+## Cook — drawer eyebrow corrective pass (2026-11-20, in progress)
+
+User invoked `$cook bước tiếp` for Review F1. Scope is one drawer-only color override and a contrast regression covering every visible drawer text element (approved phases 4–5). Standing local-commit authorization remains active.
+
+Current ownership supersedes older coordination rows for this pass: Main exclusively owns `apps/web/src/shared/theme/styles.css`, `apps/web/e2e/demo.smoke.spec.ts`, the Cook report and handoff. A read-only assistant may check selector coverage but must not edit or start a separate workflow stage. No other implementation files are in scope.
+
+## Cook — drawer eyebrow fix completed, 2026-11-20
+
+- Status: IMPLEMENTED; Review F1 addressed by one local CSS override, leaving the shared eyebrow style unchanged.
+- Expanded existing browser contrast loop to all six visible drawer text elements. Proved the new test fails before the fix (390px, 4.043699:1, exit 1), then passes after it.
+- Browser measurements at 390/768/1440px: eyebrow 4.954033:1; document title 10.908883:1; metadata/disclosure 5.708172:1; page label 4.954033:1; excerpt 5.486109:1. All >=4.5:1.
+- Checks: typecheck PASS; 56 tests / 5 files PASS; build PASS; 6/6 E2E PASS (14.8s); diff-check PASS. Mobile screenshot inspected.
+- Scope: styles.css, demo.smoke.spec.ts, this handoff and Cook report only. Read-only assistance checked selector coverage; main owned all writes.
+- Report: `docs/reports/2026-11-20/2026-11-20-frontend-demo-chat-ux-cook-drawer-contrast.md`. Evidence: `/tmp/fe-chat-eyebrow-fix-20261120/`, with before/after outputs kept separate.
+- Standing user authorization covers the completed local commit; generated outputs/unrelated files are excluded. No push, merge or PR performed.
+- Next workflow stage: Test, then Review with go-ahead. Historical Review verdict remains recorded against its original revision.
