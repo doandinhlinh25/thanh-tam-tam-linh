@@ -1,3 +1,89 @@
+# Review: final course-scoped demo chat UX acceptance
+
+Date: 2026-11-20
+Reviewed tree: `b4b5a15` (passing Test report commit)
+Implementation: `f30b19f`
+Approved source base: `8f36675`
+**Decision: APPROVE for the approved fixture-only frontend scope.**
+
+## Summary and independence
+
+The user explicitly authorized sequential Test and Review in the current request. Test completed with PASS, and its report/handoff were committed separately as `b4b5a15`. Then an independent agent, which did not author the implementation, reviewed the actual source/test diff and current evidence. Main assessed scope and verified the implementation remained unchanged after Test.
+
+No unresolved confirmed Critical, High, Medium or Low defect remains in the current feature diff. No additional implementation changes or acceptance conditions are required for this demo slice. The prior Review F1 is resolved and now has permanent regression coverage.
+
+Only this Review report and the handoff are written in this stage. The user's standing local-commit instruction authorizes committing this completed record; no push, merge or PR is included. Existing generated `apps/web/test-results/` is preserved and excluded.
+
+## Scope and prior finding resolution
+
+The complete `8f36675...b4b5a15` diff matches the approved fixture-backed student course/chat journey. The latest production fix is a single drawer-scoped color override, and its test change expands the existing browser contrast loop. There are no dependency, backend, gateway, API contract, authentication or streaming changes.
+
+Prior confirmed F1 is **resolved**:
+
+- `apps/web/src/shared/theme/styles.css:795` scopes `#6962ce` to `.citation-drawer-heading .eyebrow`; the global shared eyebrow style is untouched.
+- `apps/web/e2e/demo.smoke.spec.ts:95` now measures all six visible drawer text elements.
+- Current-run JSON at 390/768/1440px contains six measurements each, minimum **4.954033:1**, compared with the former **4.043699:1** failure.
+- The before-fix red regression and after-fix success are retained as evidence; the threshold was not lowered and no safeguard was removed.
+
+## Acceptance coverage
+
+| Criterion | Review result | Source and test evidence |
+| --- | --- | --- |
+| AC1 course context | PASS within demo scope | Assigned-course filtering/selected context; component and browser course/history assertions. |
+| AC2 distinct states | PASS | Discriminated result model; explicit technical, permission and dependency scenarios; separate empty/pending presentation. |
+| AC3 citations | PASS | Answered fixtures supply metadata; errors/refusals contain no citations; no guessed source URL. |
+| AC4 accessible detail | PASS within tested browser | Native showModal, focus entry/return, native cancel, backdrop dismissal and browser assertions for modality/inert background/Tab/Shift+Tab/Escape. |
+| AC5 duplicate/retry/draft | PASS | Synchronous timer Map guard, per-course draft state, disabled controls, retry replacing a response without duplicating its question. |
+| AC6 course/history isolation | PASS within local demo state | Originating course/context captured by delayed callback; latest question paired with its following answer; copied metadata traces fixtures only. |
+| AC7 feedback | PASS | Answer-only rating; failed intent preserves successful rating; retry applies the intended choice. |
+| AC8 responsive/keyboard/UI quality | PASS for tested surface | 390/768/1440px geometry/overflow/grid/focus and all six drawer text contrasts; prior F1 fixed locally. |
+| AC9 untrusted content/security | PASS within fixture boundary | Literal React text rendering and hostile-content assertions; no added live transport, raw HTML insertion or token storage. |
+| AC10 demo boundary | PASS | UI/fixtures/API map identify synthetic data, simulated permissions, local feedback and unavailable real source access. |
+
+## Assessment of test evidence
+
+Read the current canonical Test report and its actual logs/exit-status JSON under `/tmp/fe-chat-final-test-20261120/`:
+
+- `npm run typecheck`: exit 0.
+- `npm test -- --run`: exit 0, **56/56 tests / 5 files**, 6.26s.
+- `npm run build`: exit 0, 92 modules.
+- `npm run test:e2e -- --workers=1 --output=/tmp/fe-chat-final-test-20261120/playwright`: exit 0, **6/6 Chromium E2E**, 15.1s.
+- Actual contrast JSON, not just the report: eyebrow/page label 4.954033:1; title 10.908883:1; metadata/disclosure 5.708172:1; excerpt 5.486109:1. Permission/dependency badges 4.901223:1.
+
+The tests target meaningful observable regressions: duplicate submission, delayed course isolation, history pairing, refusal/error distinctions, native browser modality, feedback failure/retry and inert text rendering. The former contrast selector gap is closed.
+
+No duplicate test/server runs were needed during Review: Test had just rerun the full configured suite on the exact unchanged implementation. Verified `git diff --exit-code f30b19f..HEAD -- apps/web contracts infrastructure packages services` and the saved frontend SHA-256 manifest: all 45 tracked frontend files remain identical to the tested source. `git diff --check 8f36675...HEAD` passes. No implementation files were changed in either verification stage.
+
+## Non-blocking suggestions (not defects or acceptance conditions)
+
+### S1 — Suggestion, Low: retain extra boundary probes
+
+- **Location:** `apps/web/e2e/demo.smoke.spec.ts` and prior temporary Test scripts under `/tmp/fe-chat-test-20261120/`.
+- **Finding/evidence:** Permanent tests cover the critical flow, but earlier no-course/long-content browser probes were retained only as temporary scripts, not the current configured suite.
+- **Impact:** Future work could lose convenient regression coverage for those additional cases; no present failure is demonstrated.
+- **Recommendation:** Add them in a separately scoped test-maintenance task when that coverage is prioritized.
+
+### S2 — Suggestion, Low: define a real history policy before integration
+
+- **Location:** `StudentWorkspace` in-memory conversation state and message-list rendering.
+- **Finding/evidence:** The current slice is a session-local fixture demo with no server history/pagination contract.
+- **Impact:** Real data sizes will need an explicit retention/pagination/rendering policy; this review does not establish a current demo performance defect.
+- **Recommendation:** Agree that policy with the Chat contract owner before adding real server history, rather than inventing an endpoint or pagination rule now.
+
+## Remaining risks and decision boundaries
+
+APPROVE applies to the approved demo only. Real server authorization, tenant isolation, session/CSRF, gateway routes, ingestion/retrieval, protected sources and persisted feedback remain unimplemented/outside scope. Passing mocks or browser-selected context is not proof of those controls.
+
+Screen readers, non-Chromium browsers, comprehensive site-wide contrast, extreme histories and full zoom/IME behavior remain unverified and are not certified by this approval. These disclosed limitations are not newly confirmed regressions in the reviewed slice.
+
+## Completion and next action
+
+The approved demo slice can be accepted at implementation `f30b19f`. Test PASS and Review APPROVE are now both recorded. Commit this completed Review record/handoff locally under standing authorization. A new feature or real integration requires its own scoped requirements/contract work; no push, merge or PR is performed by this acceptance.
+
+---
+
+## Historical Review (superseded for the current revision)
+
 # Review: course-scoped demo chat UX
 
 Date: 2026-11-20

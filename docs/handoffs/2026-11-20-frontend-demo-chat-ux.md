@@ -149,3 +149,13 @@ Current ownership supersedes older coordination rows for this pass: Main exclusi
 - Updated canonical Test report with current PASS and preserved historical runs: `docs/reports/2026-11-20/2026-11-20-frontend-demo-chat-ux-test.md`. Fresh evidence: `/tmp/fe-chat-final-test-20261120/`.
 - No implementation/config/test changes made; existing generated/unrelated work preserved. Commit this completed Test report/handoff locally under standing authorization; no push/merge/PR.
 - Next: independent Review, already authorized by the user's current request. No separate confirmation needed.
+
+## Review — final acceptance, 2026-11-20
+
+- Decision: **APPROVE for the approved fixture-only frontend scope**. Reviewed tree b4b5a15; implementation f30b19f; source base 8f36675.
+- Independent reviewer inspected actual source/tests and current Test logs/contrast JSON. No unresolved confirmed defects or additional acceptance conditions remain in this slice; all AC1–10 pass within documented demo/browser boundaries.
+- Prior F1 is resolved: scoped eyebrow color, all six drawer text selectors checked, minimum 4.954033:1 at all three widths. Current Test evidence: typecheck exit 0, 56/56 tests, build exit 0, 6/6 E2E (15.1s).
+- No implementation changes during Test or Review; all 45 tracked frontend files remain identical to the tested source. Review uses the fresh full Test run without duplicating it.
+- Canonical Review report updated with APPROVE and historical verdict retained: `docs/reports/2026-11-20/2026-11-20-frontend-demo-chat-ux-review.md`. Test report committed separately as b4b5a15.
+- Non-blocking future suggestions: retain extra boundary probes as repository tests; define history policy before real Chat integration. Live contracts/auth/retrieval, other browsers and broader accessibility remain outside this approval.
+- Commit this completed Review record/handoff locally under standing user authorization; generated/unrelated work excluded. No push, merge or PR performed. Approved demo slice is ready to accept.
