@@ -776,18 +776,31 @@ h1, h2, h3, h4, p { margin-top: 0; }
 .student-answer-status { display: inline-flex; align-items: center; gap: 5px; border-radius: 99px; background: #eaf7f1; padding: 4px 7px; color: #318267; font-size: 7px; font-weight: 750; }
 .student-answer-status i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .student-answer-status-insufficient_evidence { background: #fff5e6; color: #a66d21; }
-.student-answer-status-error { background: #fff0f1; color: #bd545e; }
+.student-answer-status-error { background: #fff0f1; color: #a74e58; }
 .student-citations { display: grid; gap: 6px; margin-top: 12px; border-top: 1px solid #eceef4; padding-top: 10px; }
 .student-citations-label { display: inline-flex; align-items: center; gap: 6px; color: #7772cf; font-size: 7px; font-weight: 750; }
-.student-citation { border: 1px solid #e6e7f0; border-radius: 7px; background: #fff; }
-.student-citation summary { display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer; list-style: none; }
-.student-citation summary::-webkit-details-marker { display: none; }
-.student-citation summary > span { display: flex; min-width: 0; flex: 1; align-items: center; gap: 7px; }
-.student-citation summary strong { overflow: hidden; color: #555b70; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
-.student-citation summary small { flex: 0 0 auto; border-radius: 4px; background: #f1f0ff; padding: 3px 5px; color: #6b65d3; font-size: 7px; }
-.student-citation summary > svg { color: #989daf; transition: transform .15s ease; }
-.student-citation[open] summary > svg { transform: rotate(90deg); }
-.student-citation > p { margin: 0; border-top: 1px solid #f0f1f5; padding: 8px; color: #81879a; font-size: 8px; line-height: 1.6; }
+.student-citation { display: flex; min-width: 0; align-items: center; gap: 8px; width: 100%; border: 1px solid #e6e7f0; border-radius: 7px; background: #fff; padding: 8px; cursor: pointer; text-align: left; }
+.student-citation:hover, .student-citation:focus-visible { border-color: #aaa5ec; background: #fbfaff; }
+.student-citation > span { display: flex; min-width: 0; flex: 1; align-items: center; gap: 7px; }
+.student-citation strong { overflow: hidden; color: #555b70; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.student-citation small { flex: 0 0 auto; border-radius: 4px; background: #f1f0ff; padding: 3px 5px; color: #6b65d3; font-size: 7px; }
+.student-citation > svg { color: #989daf; }
+.student-retry-button { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; border: 1px solid #edcfd1; border-radius: 7px; background: #fff8f8; padding: 6px 8px; color: #a74e58; cursor: pointer; font-size: 8px; font-weight: 750; }
+.student-retry-button:hover, .student-retry-button:focus-visible { border-color: #c87982; background: #fff1f2; }
+.citation-drawer-layer { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; padding: 0; background: transparent; color: inherit; }
+.citation-drawer-layer[open] { display: flex; justify-content: flex-end; }
+.citation-drawer-layer::backdrop { background: rgba(37, 40, 60, .22); }
+.citation-drawer { width: min(420px, 100%); height: 100%; overflow-y: auto; border-left: 1px solid #e5e6ef; background: #fff; padding: 24px; box-shadow: -10px 0 35px rgba(45, 48, 76, .14); }
+.citation-drawer-heading { display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; }
+.citation-drawer-heading h2 { margin: 6px 0 0; color: #363c52; font: 750 16px/1.35 Manrope, sans-serif; overflow-wrap: anywhere; }
+.citation-drawer-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 24px 0 14px; border: 1px solid #e8e8f2; border-radius: 8px; padding: 10px; color: #60667a; font-size: 9px; }
+.citation-drawer-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.citation-drawer-meta strong { color: #6962ce; font-size: 9px; }
+.citation-drawer-snippet { margin: 0; border-left: 3px solid #aaa5ec; background: #fafaff; padding: 14px; color: #60667a; font-size: 11px; line-height: 1.75; overflow-wrap: anywhere; }
+.citation-drawer-disclosure { display: flex; align-items: flex-start; gap: 7px; margin: 18px 0 0; color: #60667a; font-size: 9px; line-height: 1.6; }
+.citation-drawer-disclosure svg { flex: 0 0 14px; color: #837ddd; }
+.student-feedback-simulation { display: flex; align-items: flex-start; gap: 7px; color: #60667a; font-size: 11px; line-height: 1.5; }
+.student-feedback-error p { margin: 10px 0 0; color: #a74e58; font-size: 11px; }
 .student-answer-feedback { display: flex; align-items: center; gap: 5px; margin-top: 10px; color: #999eac; font-size: 7px; }
 .student-answer-feedback button { display: grid; width: 26px; height: 25px; place-items: center; border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; font-size: 12px; }
 .student-answer-feedback button:hover, .student-answer-feedback button.student-rating-active { border-color: #dfdef4; background: #f2f1ff; }
@@ -930,7 +943,7 @@ h1, h2, h3, h4, p { margin-top: 0; }
   .student-chat-context-heading { margin: 0; }
   .student-chat-context > .field-label { grid-column: 1; margin: 0; }
   .student-course-select { grid-column: 1 / -1; }
-  .student-context-course, .student-context-rule, .student-source-list, .student-suggestion-card, .student-scope-note { grid-column: 1 / -1; }
+  .student-context-course, .student-context-rule, .student-source-list, .student-suggestion-card, .student-scope-note, .student-personal-disclosure, .student-demo-state-actions { grid-column: 1 / -1; }
   .student-context-course { margin: 4px 0 0; }
   .student-suggestion-card { margin-top: 4px; }
   .student-chat-panel { min-height: 580px; }

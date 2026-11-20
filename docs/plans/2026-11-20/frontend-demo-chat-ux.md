@@ -1,9 +1,9 @@
 # Plan: course-scoped demo chat UX
 
-- Status: `DRAFT`
+- Status: `APPROVED` by user, 2026-11-20
 - Task ID: `2026-11-20-frontend-demo-chat-ux`
 - Branch: `thanh/fe-demo-chat-ux` at `8f36675`
-- Approved direction: user selected fixture-backed course/chat UX; this plan awaits explicit plan approval before Cook.
+- Approved direction: user selected fixture-backed course/chat UX and explicitly approved Cook on 2026-11-20.
 
 ## 1. Objective
 
@@ -22,7 +22,7 @@ Deliver a polished, contract-independent course-material RAG demo journey based 
 
 In scope: fixture-backed student course workspace; typed chat result states; citation panel/drawer; history selection; feedback; empty/loading/error/retry/permission presentation; responsive and keyboard behavior; focused tests and demo E2E.
 
-Out of scope: browser API calls, auth/session/CSRF, real upload/ingestion/retrieval/LLM/streaming, publish mutation, backend contract changes, lessons/progress/enrollment, billing, notifications, and commits/pushes.
+Out of scope: browser API calls, auth/session/CSRF, real upload/ingestion/retrieval/LLM/streaming, publish mutation, backend contract changes, lessons/progress/enrollment, billing, notifications, and pushes/merges.
 
 ## 4. Specialist skills required at Cook/Test
 
@@ -120,4 +120,17 @@ Revert only the feature branch's intended files if a phase regresses existing de
 
 ## 12. Approval gate and next action
 
-This plan is `DRAFT`. User approval is required before `$cook`. After approval, open the specialist skill files listed in section 4, implement phases in order, then run `$test` and `$review`. No commit, push, merge, or PR is included.
+This plan is `APPROVED`. The user confirmed continuing Cook on 2026-11-20 after the failed Test findings. Complete the focused fixes and Cook verification, then hand off to `$test`; start each later stage only after user go-ahead. The user subsequently authorized local commits after each completed item on 2026-11-20. Push, merge and PR remain outside this request.
+
+## 13. Cook corrective pass — 2026-11-20
+
+User invoked Cook after the independent Test contrast failure. Within existing phases 1 and 3–5:
+
+- Darken the two failing drawer text colors and add browser-computed contrast regression assertions.
+- Add explicit permission/dependency error fixtures, with permission non-retryable and dependency recoverable without fabricated evidence.
+- Carry copied demo tenant/user/course context through seed messages, submissions and retries. This is tracing-only metadata, not an API contract or authorization implementation.
+- Retain all existing work and rerun the actual frontend checks. Record results in the Cook report; historical Test results remain unchanged until a separate Test stage.
+
+### Commit authorization
+
+On 2026-11-20 the user instructed: “mỗi lần xong 1 cái j thì nên commit lại”. Commit each completed, verified work item locally, staging only its intended source/tests/docs and excluding generated results and unrelated user work. This supersedes the earlier local-commit exclusion; it does not authorize a push or merge.

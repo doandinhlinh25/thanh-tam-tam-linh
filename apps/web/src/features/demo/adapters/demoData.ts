@@ -1,7 +1,30 @@
-import type { ChatMessage, DemoAccount, MockCitation } from "../../../shared/domain/types";
+import type { ChatMessage, DemoAccount, DemoChatContext, DemoChatErrorKind, DemoChatScenario } from "../../../shared/domain/types";
 export { demoRoleLabels } from "../../../shared/domain/roles";
 
 export const demoPassword = "demo1234";
+
+// A synthetic tenant shared by the seeded personas, not a live tenant/session.
+export function createDemoChatContext(userId: string, courseId: string): DemoChatContext {
+  return { tenantId: "tenant-demo-minh-tam", userId, courseId };
+}
+
+export const demoChatErrorScenarios: Record<DemoChatErrorKind, { question: string; text: string; retryable: boolean }> = {
+  technical: {
+    question: "Mô phỏng lỗi demo",
+    text: "Không thể hoàn tất câu hỏi trong lần mô phỏng này. Câu hỏi vẫn được giữ lại để bạn có thể thử lại.",
+    retryable: true,
+  },
+  permission: {
+    question: "Mô phỏng lỗi quyền demo",
+    text: "Tình huống lỗi quyền mô phỏng: câu hỏi bị từ chối truy cập. Demo không kiểm tra quyền máy chủ; hãy đổi môn hoặc liên hệ người quản lý trong hệ thống thật.",
+    retryable: false,
+  },
+  dependency: {
+    question: "Mô phỏng lỗi phụ thuộc demo",
+    text: "Dịch vụ phụ thuộc đang không sẵn sàng trong tình huống mô phỏng. Đây không phải lỗi thiếu bằng chứng; bạn có thể thử lại câu hỏi.",
+    retryable: true,
+  },
+};
 
 export const demoAccounts: DemoAccount[] = [
   { id: "user-student-demo", name: "Nguyễn Minh Anh", email: "minhanh@minhtam.demo", role: "student", courseIds: ["course-1", "course-2", "course-3"], password: demoPassword },
@@ -9,7 +32,7 @@ export const demoAccounts: DemoAccount[] = [
   { id: "user-admin-demo", name: "Admin Tâm", email: "admin@minhtam.demo", role: "admin", courseIds: ["course-1", "course-2", "course-3", "course-4", "course-5"], password: demoPassword },
 ];
 
-export const demoChatAnswers: Record<string, { keywords: string[]; answer: string; citations: MockCitation[] }> = {
+export const demoChatAnswers: Record<string, DemoChatScenario> = {
   "course-1": {
     keywords: ["hướng đối tượng", "oop", "lớp và đối tượng"],
     answer: "Lập trình hướng đối tượng tổ chức phần mềm thành các lớp và đối tượng. Cách tiếp cận này gom dữ liệu với hành vi liên quan, giúp cấu trúc chương trình dễ mở rộng và bảo trì hơn.",
@@ -23,7 +46,10 @@ export const demoChatAnswers: Record<string, { keywords: string[]; answer: strin
   "course-3": {
     keywords: ["nơ-ron", "trọng số", "backpropagation", "lan truyền ngược"],
     answer: "Trong quá trình huấn luyện, mô hình dùng lan truyền ngược để truyền sai số từ đầu ra về các lớp trước. Bộ tối ưu sau đó điều chỉnh trọng số nhằm giảm hàm mất mát qua từng vòng lặp.",
-    citations: [{ id: "cite-neural-1", documentId: "doc-1008", documentName: "Bài giảng tuần 06 - Neural Networks.pdf", page: 12, snippet: "Mạng nơ-ron nhân tạo gồm các lớp nút được kết nối với nhau. Trong quá trình huấn luyện, mô hình cập nhật trọng số để giảm sai số dự đoán." }],
+    citations: [
+      { id: "cite-neural-1", documentId: "doc-1008", documentName: "Bài giảng tuần 06 - Neural Networks.pdf", page: 12, snippet: "Mạng nơ-ron nhân tạo gồm các lớp nút được kết nối với nhau. Trong quá trình huấn luyện, mô hình cập nhật trọng số để giảm sai số dự đoán." },
+      { id: "cite-neural-2", documentId: "doc-1002", documentName: "Machine Learning - Đề cương.docx", page: 4, snippet: "Ví dụ minh họa demo: bộ tối ưu điều chỉnh trọng số theo gradient của hàm mất mát qua từng vòng lặp huấn luyện." },
+    ],
   },
   "course-5": {
     keywords: ["tcp", "số thứ tự", "ack", "đúng thứ tự"],
@@ -38,12 +64,13 @@ export const demoPersonalDocumentAnswer = {
   citations: [{ id: "personal-demo-citation", documentId: "personal-demo-fixture", documentName: "Tình huống cá nhân mô phỏng · không dựa trên tệp đã chọn", page: 1, snippet: "Nguồn minh họa cố định của giao diện demo; không trích xuất từ tài liệu cá nhân của bạn." }],
 };
 
-export function createInitialStudentChats(): Record<string, ChatMessage[]> {
+export function createInitialStudentChats(userId: string): Record<string, ChatMessage[]> {
   const answer = demoChatAnswers["course-3"];
+  const demoContext = createDemoChatContext(userId, "course-3");
   return {
     "course-3": [
-      { id: "sample-question-1", author: "student", text: "Mạng nơ-ron cập nhật trọng số như thế nào?", createdAt: "09:18" },
-      { id: "sample-answer-1", author: "assistant", text: answer.answer, createdAt: "09:18", status: "answered", citations: answer.citations },
+      { id: "sample-question-1", author: "student", text: "Mạng nơ-ron cập nhật trọng số như thế nào?", createdAt: "09:18", demoContext: { ...demoContext }, demoOnly: true },
+      { id: "sample-answer-1", author: "assistant", text: answer.answer, createdAt: "09:18", status: "answered", citations: answer.citations, demoContext: { ...demoContext }, demoOnly: true },
     ],
   };
 }
