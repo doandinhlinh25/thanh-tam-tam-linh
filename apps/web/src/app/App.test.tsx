@@ -1,5 +1,9 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { createRef } from "react";
+import { StudentAssistant } from "../features/student/pages/StudentWorkspace";
+import { demoAccounts } from "../features/demo/adapters/demoData";
+import { initialCourses } from "../features/demo/adapters/mockData";
 import App from "./App";
 import { renderApp } from "../test/renderApp";
 
@@ -144,8 +148,38 @@ describe("role-based demo routes", () => {
     await user.click(screen.getByRole("button", { name: /Sinh viên/ }));
     await user.click(within(await screen.findByRole("navigation", { name: "Điều hướng chính" })).getByRole("button", { name: "Trợ lý AI" }));
     await user.click(screen.getByRole("button", { name: /Mạng nơ-ron cập nhật trọng số/ }));
-    expect(await screen.findByText("Nguồn tham khảo mẫu")).toBeInTheDocument();
-    expect(screen.getByRole("log").querySelector(".student-citation summary strong")?.textContent).toContain("Neural Networks");
+    await waitFor(() => expect(screen.getAllByText("Nguồn tham khảo mẫu")).toHaveLength(2));
+    expect(within(screen.getByRole("log")).getAllByRole("button", { name: /Neural Networks/ })).toHaveLength(2);
+    expect(within(screen.getByRole("log")).getAllByRole("button", { name: /Machine Learning/ })).toHaveLength(2);
+  });
+
+  it("contains citation keyboard focus and restores its opener on close, cancel and backdrop", async () => {
+    const { user } = renderApp(<App />);
+    await user.click(screen.getByRole("button", { name: /Sinh viên/ }));
+    await user.click(within(await screen.findByRole("navigation", { name: "Điều hướng chính" })).getByRole("button", { name: "Trợ lý AI" }));
+    const opener = screen.getByRole("button", { name: /Bài giảng tuần 06/ });
+    await user.click(opener);
+    const dialog = screen.getByRole("dialog", { name: /Bài giảng tuần 06/ });
+    const close = within(dialog).getByRole("button", { name: "Đóng chi tiết nguồn" });
+    expect(close).toHaveFocus();
+    await user.tab();
+    expect(close).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(close).toHaveFocus();
+    expect(within(dialog).getByText(/Chưa có đường dẫn xem hoặc tải/)).toBeInTheDocument();
+    expect(within(dialog).queryByRole("link")).not.toBeInTheDocument();
+    await user.click(close);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+    await user.click(opener);
+    // jsdom does not generate the browser's native Escape/cancel event.
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { bubbles: false, cancelable: true }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+    await user.click(opener);
+    fireEvent.click(screen.getByRole("dialog"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
   });
 
   it("records answer feedback in the current demo session", async () => {
@@ -165,6 +199,49 @@ describe("role-based demo routes", () => {
     await user.click(screen.getByRole("button", { name: "Mô phỏng lỗi kỹ thuật" }));
     expect(await screen.findByText(/Không thể hoàn tất câu hỏi/)).toBeInTheDocument();
     expect(screen.queryByText(/chưa tìm thấy đủ thông tin/)).not.toBeInTheDocument();
+  });
+
+  it("retries a technical demo response without adding another student message", async () => {
+    const { user } = renderApp(<App />);
+    await user.click(screen.getByRole("button", { name: /Sinh viên/ }));
+    await user.click(within(await screen.findByRole("navigation", { name: "Điều hướng chính" })).getByRole("button", { name: "Trợ lý AI" }));
+    await user.click(screen.getByRole("button", { name: "Mô phỏng lỗi kỹ thuật" }));
+    expect(await screen.findByRole("button", { name: "Thử lại câu hỏi" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Thử lại câu hỏi" }));
+    expect(await screen.findByText(/chưa tìm thấy đủ thông tin/)).toBeInTheDocument();
+    expect(screen.getAllByText("Mô phỏng lỗi demo")).toHaveLength(1);
+  });
+
+  it("keeps the previous rating when a demo feedback attempt fails and retries that choice", async () => {
+    const { user } = renderApp(<App />);
+    await user.click(screen.getByRole("button", { name: /Sinh viên/ }));
+    await user.click(within(await screen.findByRole("navigation", { name: "Điều hướng chính" })).getByRole("button", { name: "Trợ lý AI" }));
+    const positive = screen.getByRole("button", { name: "Câu trả lời hữu ích" });
+    const negative = screen.getByRole("button", { name: "Câu trả lời chưa hữu ích" });
+    await user.click(positive);
+    await user.click(screen.getByRole("checkbox", { name: "Mô phỏng lỗi đánh giá một lần" }));
+    await user.click(negative);
+    expect(screen.getByRole("alert")).toHaveTextContent("Lỗi đánh giá mô phỏng");
+    expect(positive).toHaveAttribute("aria-pressed", "true");
+    expect(negative).toHaveAttribute("aria-pressed", "false");
+    await user.click(screen.getByRole("button", { name: "Thử lại đánh giá" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(positive).toHaveAttribute("aria-pressed", "false");
+    expect(negative).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("renders hostile answer and citation content as inert text", async () => {
+    const answer = '<img src=x onerror="alert(1)"> [mở](javascript:alert(1))';
+    const documentName = '<script>alert(1)</script>.pdf';
+    const snippet = '<svg onload="alert(1)"> javascript:alert(1)';
+    const { user, container } = renderApp(<StudentAssistant user={demoAccounts[0]} courses={initialCourses.slice(0, 3)} course={initialCourses[2]} documents={[]} personalDocuments={[]}
+      messages={[{ id: "hostile-fixture", author: "assistant", status: "answered", text: answer, createdAt: "09:00", citations: [{ id: "hostile-citation", documentId: "fixture-only", documentName, page: 1, snippet }] }]}
+      draft="" pending={false} onCourseChange={vi.fn()} onDraftChange={vi.fn()} onSubmit={vi.fn()} onEnter={vi.fn()} onRate={vi.fn()} onRetry={vi.fn()} listEndRef={createRef<HTMLDivElement>()} />);
+    expect(screen.getByText(answer)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /<script>/ }));
+    const dialog = screen.getByRole("dialog", { name: documentName });
+    expect(within(dialog).getByText(snippet)).toBeInTheDocument();
+    expect(container.querySelector('img, script, svg[onload], a[href]')).toBeNull();
   });
 
   it("does not let a student visit the admin URL", async () => {

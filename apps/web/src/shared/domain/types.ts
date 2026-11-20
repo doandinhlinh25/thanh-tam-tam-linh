@@ -24,6 +24,21 @@ export interface MockCitation {
 
 export type ChatResultStatus = "answered" | "insufficient_evidence" | "error";
 
+// Fixture tracing only; browser-selected metadata does not authorize access.
+export interface DemoChatContext {
+  tenantId: string;
+  userId: string;
+  courseId: string;
+}
+
+export type DemoChatErrorKind = "technical" | "permission" | "dependency";
+
+export interface DemoChatScenario {
+  keywords: string[];
+  answer: string;
+  citations: MockCitation[];
+}
+
 export interface ChatMessage {
   id: string;
   author: "student" | "assistant";
@@ -32,6 +47,11 @@ export interface ChatMessage {
   status?: ChatResultStatus;
   citations?: MockCitation[];
   rating?: "positive" | "negative";
+  retryable?: boolean;
+  errorKind?: DemoChatErrorKind;
+  demoContext?: DemoChatContext;
+  demoOnly?: true;
+  feedbackError?: { rating: "positive" | "negative" };
 }
 
 export type DocumentStatus = "pending" | "processing" | "completed" | "failed";

@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Icon } from "../../../shared/ui/Icon";
 import { RoleWorkspace, type PortalNavigationItem } from "../../../shared/layout/RoleWorkspace";
 import { Button, EmptyState, PageHeading, StatCard, Toast } from "../../../shared/ui/Primitives";
-import { createInitialStudentChats, demoChatAnswers, demoPersonalDocumentAnswer } from "../../demo/adapters/demoData";
+import { createDemoChatContext, createInitialStudentChats, demoChatErrorScenarios } from "../../demo/adapters/demoData";
+import { getDemoChatResult } from "../../demo/adapters/chatScenarios";
 import { demoRoleLabels } from "../../../shared/domain/roles";
 import { initialCourses, initialDocuments } from "../../demo/adapters/mockData";
-import type { ChatMessage, ChatResultStatus, Course, DemoUser, LearningDocument, PersonalStudentDocument } from "../../../shared/domain/types";
+import type { ChatMessage, ChatResultStatus, Course, DemoUser, LearningDocument, MockCitation, PersonalStudentDocument } from "../../../shared/domain/types";
 import { StudentDocumentsPage } from "./StudentDocumentsPage";
 import { NotFoundPage } from "../../../shared/ui/NotFoundPage";
 import { getRouteId, studentRoutes, type StudentPage } from "../../../app/routes";
@@ -44,25 +45,11 @@ function createId() {
   return `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-function answerFor(courseId: string, question: string, hasPersonalDocuments: boolean): Pick<ChatMessage, "text" | "status" | "citations"> {
-  const normalized = question.trim().toLocaleLowerCase("vi");
-  if (normalized.includes("lỗi demo") || normalized.includes("mô phỏng lỗi")) {
-    return { status: "error", text: "Không thể hoàn tất câu hỏi trong lần mô phỏng này. Nội dung bạn vừa nhập vẫn được giữ trong lịch sử demo; hãy thử gửi một câu hỏi khác." };
-  }
-  const personalQuestion = question.trim().toLocaleLowerCase("vi");
-  if (hasPersonalDocuments && demoPersonalDocumentAnswer.keywords.some((keyword) => personalQuestion.includes(keyword))) {
-    return { status: "answered", text: demoPersonalDocumentAnswer.answer, citations: demoPersonalDocumentAnswer.citations };
-  }
-  const scenario = demoChatAnswers[courseId];
-  if (scenario && scenario.keywords.some((keyword) => normalized.includes(keyword))) {
-    return { status: "answered", text: scenario.answer, citations: scenario.citations };
-  }
-  return { status: "insufficient_evidence", text: "Mình chưa tìm thấy đủ thông tin trong tài liệu mẫu của môn học này để trả lời chính xác. Hãy thử hỏi về nội dung đã có trong học liệu." };
-}
-
-function messageStatusLabel(status: ChatResultStatus) {
+function messageStatusLabel(status: ChatResultStatus, errorKind?: ChatMessage["errorKind"]) {
   if (status === "answered") return "Có nguồn tham khảo";
   if (status === "insufficient_evidence") return "Chưa đủ bằng chứng";
+  if (errorKind === "permission") return "Lỗi quyền mô phỏng";
+  if (errorKind === "dependency") return "Dịch vụ mô phỏng chưa sẵn sàng";
   return "Lỗi mô phỏng";
 }
 
@@ -88,11 +75,14 @@ export function StudentWorkspace({ user, onLogout }: { user: DemoUser; onLogout:
   const scopedCourses = useMemo(() => initialCourses.filter((course) => user.courseIds.includes(course.id)), [user.courseIds]);
   const scopedDocuments = useMemo(() => initialDocuments.filter((document) => user.courseIds.includes(document.courseId)), [user.courseIds]);
   const [selectedCourseId, setSelectedCourseId] = useState(() => user.courseIds.includes("course-3") ? "course-3" : (user.courseIds[0] ?? ""));
-  const [messagesByCourse, setMessagesByCourse] = useState<Record<string, ChatMessage[]>>(createInitialStudentChats);
+  const [messagesByCourse, setMessagesByCourse] = useState<Record<string, ChatMessage[]>>(() => createInitialStudentChats(user.id));
   const [personalDocuments, setPersonalDocuments] = useState<PersonalStudentDocument[]>([]);
-  const [draft, setDraft] = useState("");
+  const [draftsByCourse, setDraftsByCourse] = useState<Record<string, string>>({});
+  const draft = draftsByCourse[selectedCourseId] ?? "";
+  const setDraft = (value: string) => setDraftsByCourse((current) => ({ ...current, [selectedCourseId]: value }));
   const [pendingCourseIds, setPendingCourseIds] = useState<Set<string>>(() => new Set());
   const [toast, setToast] = useState<string | null>(null);
+  const [simulateFeedbackError, setSimulateFeedbackError] = useState(false);
   const timerRef = useRef<Map<string, number>>(new Map());
   const listEndRef = useRef<HTMLDivElement>(null);
   const currentCourse = scopedCourses.find((course) => course.id === selectedCourseId);
@@ -101,7 +91,10 @@ export function StudentWorkspace({ user, onLogout }: { user: DemoUser; onLogout:
   const totalMessages = conversations.reduce((sum, item) => sum + item.messages.filter((message) => message.author === "student").length, 0);
 
   useEffect(() => () => { timerRef.current.forEach((timer) => window.clearTimeout(timer)); timerRef.current.clear(); }, []);
-  useEffect(() => { listEndRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [messages.length, pendingCourseIds]);
+  useEffect(() => {
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    listEndRef.current?.scrollIntoView({ block: "nearest", behavior: reducedMotion ? "instant" : "smooth" });
+  }, [messages.length, pendingCourseIds]);
 
   const openAssistant = (courseId?: string) => {
     if (courseId) setSelectedCourseId(courseId);
@@ -111,16 +104,37 @@ export function StudentWorkspace({ user, onLogout }: { user: DemoUser; onLogout:
   const sendQuestion = (event?: FormEvent<HTMLFormElement>, suggested?: string) => {
     event?.preventDefault();
     const text = (suggested ?? draft).trim();
-    if (!text || !selectedCourseId || pendingCourseIds.has(selectedCourseId)) return;
+    if (!text || !currentCourse || timerRef.current.has(selectedCourseId)) return;
     const courseId = selectedCourseId;
-    const userMessage: ChatMessage = { id: createId(), author: "student", text, createdAt: formatTime() };
+    const demoContext = createDemoChatContext(user.id, courseId);
+    const userMessage: ChatMessage = { id: createId(), author: "student", text, createdAt: formatTime(), demoContext, demoOnly: true };
     setMessagesByCourse((current) => ({ ...current, [courseId]: [...(current[courseId] ?? []), userMessage] }));
     setDraft("");
     setPendingCourseIds((current) => new Set(current).add(courseId));
     const timer = window.setTimeout(() => {
-      const response = answerFor(courseId, text, personalDocuments.some((document) => document.ownerId === user.id && document.courseId === courseId));
+      const response = getDemoChatResult(demoContext, text, personalDocuments.some((document) => document.ownerId === user.id && document.courseId === courseId));
       const assistantMessage: ChatMessage = { id: createId(), author: "assistant", createdAt: formatTime(), ...response };
       setMessagesByCourse((current) => ({ ...current, [courseId]: [...(current[courseId] ?? []), assistantMessage] }));
+      setPendingCourseIds((current) => { const next = new Set(current); next.delete(courseId); return next; });
+      timerRef.current.delete(courseId);
+    }, 520);
+    timerRef.current.set(courseId, timer);
+  };
+
+  const retryQuestion = (courseId: string, messageId: string) => {
+    if (timerRef.current.has(courseId)) return;
+    const courseMessages = messagesByCourse[courseId] ?? [];
+    const assistantIndex = courseMessages.findIndex((message) => message.id === messageId && message.author === "assistant");
+    const question = assistantIndex > 0 ? [...courseMessages.slice(0, assistantIndex)].reverse().find((message) => message.author === "student") : undefined;
+    if (!question || !courseMessages[assistantIndex]?.retryable || courseMessages[assistantIndex].status !== "error") return;
+    const demoContext = courseMessages[assistantIndex].demoContext ?? createDemoChatContext(user.id, courseId);
+    setPendingCourseIds((current) => new Set(current).add(courseId));
+    const timer = window.setTimeout(() => {
+      const response = getDemoChatResult(demoContext, question.text, personalDocuments.some((document) => document.ownerId === user.id && document.courseId === courseId), true);
+      setMessagesByCourse((current) => ({
+        ...current,
+        [courseId]: (current[courseId] ?? []).map((message) => message.id === messageId ? { ...message, ...response, errorKind: response.status === "error" ? response.errorKind : undefined, retryable: response.status === "error" ? response.retryable : undefined } : message),
+      }));
       setPendingCourseIds((current) => { const next = new Set(current); next.delete(courseId); return next; });
       timerRef.current.delete(courseId);
     }, 520);
@@ -135,11 +149,16 @@ export function StudentWorkspace({ user, onLogout }: { user: DemoUser; onLogout:
   };
 
   const rateAnswer = (courseId: string, messageId: string, rating: "positive" | "negative") => {
+    const fail = simulateFeedbackError;
+    setSimulateFeedbackError(false);
     setMessagesByCourse((current) => ({
       ...current,
-      [courseId]: (current[courseId] ?? []).map((message) => message.id === messageId ? { ...message, rating } : message),
+      [courseId]: (current[courseId] ?? []).map((message) => {
+        if (message.id !== messageId || message.author !== "assistant" || message.status !== "answered") return message;
+        return fail ? { ...message, feedbackError: { rating } } : { ...message, rating, feedbackError: undefined };
+      }),
     }));
-    setToast("Đã ghi nhận đánh giá trong phiên demo.");
+    setToast(fail ? null : "Đã ghi nhận đánh giá trong phiên demo.");
   };
 
   const addPersonalDocument = (draft: Omit<PersonalStudentDocument, "id" | "ownerId" | "uploadedAt" | "status" | "demoOnly">) => {
@@ -153,7 +172,7 @@ export function StudentWorkspace({ user, onLogout }: { user: DemoUser; onLogout:
     if (page === "home") return <StudentHome user={user} courses={scopedCourses} documents={scopedDocuments} conversations={conversations} totalMessages={totalMessages} onOpenAssistant={openAssistant} onNavigate={setPage} />;
     if (page === "courses") return <StudentCourses courses={scopedCourses} documents={scopedDocuments} onOpenAssistant={openAssistant} />;
     if (page === "documents") return <StudentDocumentsPage user={user} courses={scopedCourses} documents={personalDocuments} onAddDocument={addPersonalDocument} onRemoveDocument={(id) => { setPersonalDocuments((current) => current.filter((document) => document.id !== id)); setToast("Đã xóa thông tin tài liệu khỏi phiên demo."); }} />;
-    if (page === "assistant") return <StudentAssistant user={user} courses={scopedCourses} course={currentCourse} documents={scopedDocuments} personalDocuments={personalDocuments.filter((document) => document.ownerId === user.id)} messages={messages} draft={draft} pending={pendingCourseIds.has(selectedCourseId)} onCourseChange={setSelectedCourseId} onDraftChange={setDraft} onSubmit={sendQuestion} onEnter={sendOnEnter} onRate={rateAnswer} listEndRef={listEndRef} />;
+    if (page === "assistant") return <StudentAssistant user={user} courses={scopedCourses} course={currentCourse} documents={scopedDocuments} personalDocuments={personalDocuments.filter((document) => document.ownerId === user.id)} messages={messages} draft={draft} pending={pendingCourseIds.has(selectedCourseId)} onCourseChange={setSelectedCourseId} onDraftChange={setDraft} onSubmit={sendQuestion} onEnter={sendOnEnter} onRate={rateAnswer} onRetry={retryQuestion} simulateFeedbackError={simulateFeedbackError} onSimulateFeedbackErrorChange={setSimulateFeedbackError} listEndRef={listEndRef} />;
     if (page === "history") return <StudentHistory conversations={conversations} onOpen={(courseId) => openAssistant(courseId)} />;
     return <StudentAccount user={user} courses={scopedCourses} onLogout={onLogout} />;
   };
@@ -186,7 +205,7 @@ function StudentHome({ user, courses, documents, conversations, totalMessages, o
     </section>
 
     <section className="student-lower-grid"><div className="student-section student-recent-section"><div className="student-section-heading"><div><span className="eyebrow">TIẾP TỤC HỌC</span><h2>Hỏi đáp gần đây</h2></div><button className="text-button" type="button" onClick={() => onNavigate("history")}>Lịch sử <Icon name="arrow" size={15} /></button></div>
-        {recent.length === 0 ? <EmptyState title="Chưa có câu hỏi nào" description="Bắt đầu cuộc trò chuyện đầu tiên với trợ lý môn học." /> : <div className="student-recent-list">{recent.map(({ course, messages: courseMessages }) => { const latestQuestion = [...courseMessages].reverse().find((message) => message.author === "student"); const latestAnswer = [...courseMessages].reverse().find((message) => message.author === "assistant"); return <button className="student-recent-item" type="button" key={course.id} onClick={() => onOpenAssistant(course.id)}><span className="student-recent-icon"><Icon name="sparkles" size={17} /></span><span className="student-recent-text"><strong>{latestQuestion?.text ?? "Cuộc trò chuyện môn học"}</strong><small>{course.code} · {course.name}</small></span><span className={`student-recent-status student-status-${latestAnswer?.status ?? "answered"}`}>{latestAnswer ? messageStatusLabel(latestAnswer.status ?? "answered") : "Đang xem"}</span><Icon name="chevron" size={16} /></button>; })}</div>}
+        {recent.length === 0 ? <EmptyState title="Chưa có câu hỏi nào" description="Bắt đầu cuộc trò chuyện đầu tiên với trợ lý môn học." /> : <div className="student-recent-list">{recent.map(({ course, messages: courseMessages }) => { const latestQuestion = [...courseMessages].reverse().find((message) => message.author === "student"); const latestAnswer = latestQuestion ? courseMessages.slice(courseMessages.indexOf(latestQuestion) + 1).find((message) => message.author === "assistant") : undefined; return <button className="student-recent-item" type="button" key={course.id} onClick={() => onOpenAssistant(course.id)}><span className="student-recent-icon"><Icon name="sparkles" size={17} /></span><span className="student-recent-text"><strong>{latestQuestion?.text ?? "Cuộc trò chuyện môn học"}</strong><small>{course.code} · {course.name}</small></span><span className={`student-recent-status student-status-${latestAnswer?.status ?? "answered"}`}>{latestAnswer ? messageStatusLabel(latestAnswer.status ?? "answered", latestAnswer.errorKind) : "Chưa có phản hồi"}</span><Icon name="chevron" size={16} /></button>; })}</div>}
       </div><aside className="student-tip-card"><span className="student-tip-icon"><Icon name="file" size={19} /></span><span className="eyebrow">MẸO HỌC TẬP</span><h3>Hỏi đúng trọng tâm</h3><p>Nêu khái niệm hoặc chủ đề trong môn học. Trợ lý demo sẽ chỉ trả lời khi có nguồn mẫu phù hợp.</p><button type="button" className="text-button" onClick={() => onOpenAssistant()}>Thử đặt câu hỏi <Icon name="arrow" size={14} /></button></aside></section>
     <div className="demo-banner"><span className="demo-pulse" />Tài khoản, ghi danh, câu trả lời và lịch sử đều là dữ liệu minh họa trong phiên này.</div>
   </div>;
@@ -196,7 +215,7 @@ function StudentCourses({ courses, documents, onOpenAssistant }: { courses: Cour
   return <div className="page-stack student-page-stack"><PageHeading eyebrow="KHÔNG GIAN HỌC TẬP" title="Môn học của tôi" description="Các môn học mẫu được ghi danh cho tài khoản sinh viên này." action={<span className="date-pill"><Icon name="course" size={15} />{courses.length} môn học demo</span>} /><div className="demo-banner"><span className="demo-pulse" />Danh sách chỉ hiển thị các môn được gán cho persona demo hiện tại.</div>{courses.length ? <div className="student-course-grid student-course-grid-page">{courses.map((course) => <CourseCard key={course.id} course={course} documents={documents} onOpenAssistant={onOpenAssistant} />)}</div> : <EmptyState title="Chưa có môn học" description="Môn học được ghi danh sẽ xuất hiện tại đây." />}</div>;
 }
 
-export function StudentAssistant({ user, courses, course, documents, personalDocuments, messages, draft, pending, onCourseChange, onDraftChange, onSubmit, onEnter, onRate, listEndRef }: {
+export function StudentAssistant({ user, courses, course, documents, personalDocuments, messages, draft, pending, onCourseChange, onDraftChange, onSubmit, onEnter, onRate, onRetry, simulateFeedbackError = false, onSimulateFeedbackErrorChange, listEndRef }: {
   user: DemoUser;
   courses: Course[];
   course?: Course;
@@ -210,6 +229,9 @@ export function StudentAssistant({ user, courses, course, documents, personalDoc
   onSubmit: (event?: FormEvent<HTMLFormElement>, suggested?: string) => void;
   onEnter: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onRate: (courseId: string, messageId: string, rating: "positive" | "negative") => void;
+  onRetry: (courseId: string, messageId: string) => void;
+  simulateFeedbackError?: boolean;
+  onSimulateFeedbackErrorChange?: (value: boolean) => void;
   listEndRef: RefObject<HTMLDivElement | null>;
 }) {
   const readyDocuments = documents.filter((document) => document.courseId === course?.id && document.status === "completed");
@@ -222,7 +244,7 @@ export function StudentAssistant({ user, courses, course, documents, personalDoc
         {course ? <><div className="student-context-course"><span className="student-course-code">{course.code}</span><h3>{course.name}</h3><p>{course.description}</p></div><div className="student-context-rule"><span><Icon name="file" size={15} />Tài liệu môn học mẫu</span><strong>{readyDocuments.length}</strong></div><ul className="student-source-list">{readyDocuments.map((document) => <li key={document.id}><Icon name="file" size={14} /><span>{document.name}</span></li>)}</ul><div className="student-context-rule"><span><Icon name="file" size={15} />Tài liệu cá nhân demo</span><strong>{personalDocuments.filter((document) => document.courseId === course.id).length}</strong></div>{personalDocuments.filter((document) => document.courseId === course.id).length > 0 && <ul className="student-source-list">{personalDocuments.filter((document) => document.courseId === course.id).map((document) => <li key={document.id}><Icon name="file" size={14} /><span>{document.name} · tệp chưa được đọc</span></li>)}</ul>}<p className="student-personal-disclosure">Tệp cá nhân chỉ được liệt kê trong demo. Trợ lý không phân tích nội dung tệp đã chọn.</p></> : <EmptyState title="Chưa có môn học" description="Không có môn học để đặt câu hỏi." />}
         {suggested && <div className="student-suggestion-card"><span>GỢI Ý CÂU HỎI</span><button type="button" onClick={() => onSubmit(undefined, suggested)} disabled={pending || !course}>{suggested}</button></div>}
         <div className="student-scope-note"><Icon name="settings" size={14} /><span>Dữ liệu hội thoại được tách theo từng môn trong phiên demo.</span></div>
-        <div className="student-demo-state-actions"><span>THỬ CÁC TRẠNG THÁI DEMO</span><button type="button" onClick={() => onSubmit(undefined, "Chủ đề này không xuất hiện trong tài liệu môn học.")} disabled={pending || !course}>Câu hỏi chưa có nguồn</button><button type="button" onClick={() => onSubmit(undefined, "Mô phỏng lỗi demo")} disabled={pending || !course}>Mô phỏng lỗi kỹ thuật</button></div>
+        <div className="student-demo-state-actions"><span>THỬ CÁC TRẠNG THÁI DEMO</span><button type="button" onClick={() => onSubmit(undefined, "Chủ đề này không xuất hiện trong tài liệu môn học.")} disabled={pending || !course}>Câu hỏi chưa có nguồn</button><button type="button" onClick={() => onSubmit(undefined, demoChatErrorScenarios.technical.question)} disabled={pending || !course}>Mô phỏng lỗi kỹ thuật</button><button type="button" onClick={() => onSubmit(undefined, demoChatErrorScenarios.permission.question)} disabled={pending || !course}>Mô phỏng lỗi quyền</button><button type="button" onClick={() => onSubmit(undefined, demoChatErrorScenarios.dependency.question)} disabled={pending || !course}>Mô phỏng lỗi phụ thuộc</button>{onSimulateFeedbackErrorChange && <label className="student-feedback-simulation"><input type="checkbox" checked={simulateFeedbackError} onChange={(event) => onSimulateFeedbackErrorChange(event.target.checked)} />Mô phỏng lỗi đánh giá một lần</label>}</div>
       </aside>
 
       <section className="student-chat-panel" aria-label={`Trò chuyện môn ${course?.name ?? "học"}`}>
@@ -230,7 +252,8 @@ export function StudentAssistant({ user, courses, course, documents, personalDoc
         {!course ? <EmptyState title="Chưa có môn học khả dụng" description="Hãy đăng nhập bằng persona sinh viên có môn học demo." /> : <>
           <div className="student-message-list" role="log" aria-label="Lịch sử trò chuyện" aria-live="polite" aria-relevant="additions text">
             <div className="student-chat-day-label"><span />HÔM NAY<span /></div>
-            {messages.map((message) => <ChatMessageView key={message.id} message={message} user={user} courseId={course.id} onRate={onRate} />)}
+            {!messages.length && !pending && <EmptyState title="Chưa có câu hỏi trong môn này" description="Đặt câu hỏi về học liệu hoặc chọn gợi ý để bắt đầu." />}
+            {messages.map((message) => <ChatMessageView key={message.id} message={message} user={user} courseId={course.id} onRate={onRate} onRetry={onRetry} />)}
             {pending && <div className="student-message-row assistant-message-row"><span className="student-message-avatar"><Icon name="sparkles" size={14} /></span><div className="student-message-body"><span className="student-message-author">Trợ lý học tập <small>đang tra cứu tài liệu mẫu</small></span><div className="student-pending-bubble" role="status"><span /><span /><span />Đang tìm câu trả lời…</div></div></div>}
             <div ref={listEndRef} />
           </div>
@@ -242,22 +265,56 @@ export function StudentAssistant({ user, courses, course, documents, personalDoc
   </div>;
 }
 
-function ChatMessageView({ message, user, courseId, onRate }: { message: ChatMessage; user: DemoUser; courseId: string; onRate: (courseId: string, messageId: string, rating: "positive" | "negative") => void }) {
+function ChatMessageView({ message, user, courseId, onRate, onRetry }: { message: ChatMessage; user: DemoUser; courseId: string; onRate: (courseId: string, messageId: string, rating: "positive" | "negative") => void; onRetry: (courseId: string, messageId: string) => void }) {
+  const [selectedCitation, setSelectedCitation] = useState<MockCitation | null>(null);
   if (message.author === "student") return <div className="student-message-row student-user-message"><div className="student-user-bubble">{message.text}<span>{message.createdAt}</span></div><span className="student-user-avatar" aria-hidden="true">{user.name.split(" ").slice(-2).map((part) => part[0]).join("")}</span></div>;
   const status = message.status ?? "answered";
-  return <div className={`student-message-row assistant-message-row student-answer-${status}`}><span className="student-message-avatar"><Icon name="sparkles" size={14} /></span><div className="student-message-body"><span className="student-message-author">Trợ lý học tập <small>{message.createdAt}</small></span><div className="student-answer-bubble"><span className={`student-answer-status student-answer-status-${status}`}><i />{messageStatusLabel(status)}</span><p>{message.text}</p>
-      {status === "answered" && message.citations && message.citations.length > 0 && <div className="student-citations"><span className="student-citations-label"><Icon name="file" size={14} />Nguồn tham khảo mẫu</span>{message.citations.map((citation) => <details className="student-citation" key={citation.id}><summary><span><strong>{citation.documentName}</strong><small>Trang {citation.page}</small></span><Icon name="chevron" size={15} /></summary><p>{citation.snippet}</p></details>)}</div>}
+  const failedRating = message.feedbackError?.rating;
+  return <div className={`student-message-row assistant-message-row student-answer-${status}`}><span className="student-message-avatar"><Icon name="sparkles" size={14} /></span><div className="student-message-body"><span className="student-message-author">Trợ lý học tập <small>{message.createdAt}</small></span><div className="student-answer-bubble"><span className={`student-answer-status student-answer-status-${status}`}><i />{messageStatusLabel(status, message.errorKind)}</span><p>{message.text}</p>
+      {status === "answered" && message.citations && message.citations.length > 0 && <div className="student-citations"><span className="student-citations-label"><Icon name="file" size={14} />Nguồn tham khảo mẫu</span>{message.citations.map((citation) => <button className="student-citation" type="button" key={citation.id} onClick={() => setSelectedCitation(citation)}><span><strong>{citation.documentName}</strong><small>Trang {citation.page}</small></span><Icon name="chevron" size={15} /></button>)}</div>}
       {status === "answered" && <div className="student-answer-feedback"><span>Câu trả lời này có hữu ích không?</span><button type="button" aria-pressed={message.rating === "positive"} aria-label="Câu trả lời hữu ích" title="Hữu ích" className={message.rating === "positive" ? "student-rating-active" : ""} onClick={() => onRate(courseId, message.id, "positive")}>👍</button><button type="button" aria-pressed={message.rating === "negative"} aria-label="Câu trả lời chưa hữu ích" title="Chưa hữu ích" className={message.rating === "negative" ? "student-rating-active" : ""} onClick={() => onRate(courseId, message.id, "negative")}>👎</button></div>}
-    </div></div></div>;
+      {status === "answered" && failedRating && <div className="student-feedback-error"><p role="alert">Lỗi đánh giá mô phỏng. Lựa chọn trước đó chưa thay đổi.</p><button className="student-retry-button" type="button" onClick={() => onRate(courseId, message.id, failedRating)}>Thử lại đánh giá</button></div>}
+      {status === "error" && message.retryable && <button className="student-retry-button" type="button" onClick={() => onRetry(courseId, message.id)}><Icon name="refresh" size={13} />Thử lại câu hỏi</button>}
+    </div>{selectedCitation && <CitationDrawer citation={selectedCitation} onClose={() => setSelectedCitation(null)} />}</div></div>;
+}
+
+function CitationDrawer({ citation, onClose }: { citation: MockCitation; onClose: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const opener = document.activeElement;
+    dialog?.showModal();
+    closeButtonRef.current?.focus();
+    return () => {
+      dialog?.close();
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    };
+  }, []);
+  return <dialog ref={dialogRef} className="citation-drawer-layer" aria-modal="true" aria-labelledby={titleId}
+    onCancel={(event) => { event.preventDefault(); onClose(); }}
+    onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+    onKeyDown={(event) => {
+      // The close button is the drawer's only interactive control.
+      if (event.key === "Tab") { event.preventDefault(); closeButtonRef.current?.focus(); }
+    }}>
+    <section className="citation-drawer">
+      <div className="citation-drawer-heading"><div><span className="eyebrow">NGUỒN THAM KHẢO MẪU</span><h2 id={titleId}>{citation.documentName}</h2></div><button ref={closeButtonRef} className="icon-button" type="button" aria-label="Đóng chi tiết nguồn" title="Đóng" onClick={onClose}><Icon name="close" size={17} /></button></div>
+      <div className="citation-drawer-meta"><span><Icon name="file" size={15} />Tài liệu môn học</span><strong>Trang {citation.page}</strong></div>
+      <p className="citation-drawer-snippet">{citation.snippet}</p>
+      <p className="citation-drawer-disclosure"><Icon name="info" size={14} />Demo chỉ hiển thị đoạn trích fixture. Chưa có đường dẫn xem hoặc tải tài liệu thật.</p>
+    </section>
+  </dialog>;
 }
 
 function StudentHistory({ conversations, onOpen }: { conversations: { course: Course; messages: ChatMessage[] }[]; onOpen: (courseId: string) => void }) {
   const items = conversations.flatMap(({ course, messages }) => {
     const question = [...messages].reverse().find((message) => message.author === "student");
-    const answer = [...messages].reverse().find((message) => message.author === "assistant");
+    const answer = question ? messages.slice(messages.indexOf(question) + 1).find((message) => message.author === "assistant") : undefined;
     return question ? [{ course, question, answer }] : [];
   }).reverse();
-  return <div className="page-stack student-page-stack"><PageHeading eyebrow="CÂU HỎI CỦA BẠN" title="Lịch sử hỏi đáp" description="Mở lại cuộc trò chuyện mẫu theo từng môn học." action={<span className="date-pill"><Icon name="clock" size={15} />{items.length} cuộc trò chuyện</span>} /><div className="demo-banner"><span className="demo-pulse" />Lịch sử chỉ tồn tại trong phiên demo đang mở.</div>{items.length ? <div className="student-history-list">{items.map(({ course, question, answer }) => <button className="student-history-item" key={course.id} type="button" onClick={() => onOpen(course.id)}><span className="student-history-icon"><Icon name="sparkles" size={18} /></span><span className="student-history-content"><span className="student-history-course">{course.code} · {course.name}</span><strong>{question.text}</strong><small>{answer ? messageStatusLabel(answer.status ?? "answered") : "Chưa có phản hồi"} · {question.createdAt}</small></span><Icon name="arrow" size={17} /></button>)}</div> : <EmptyState title="Chưa có lịch sử hỏi đáp" description="Câu hỏi của bạn sẽ xuất hiện tại đây." />}</div>;
+  return <div className="page-stack student-page-stack"><PageHeading eyebrow="CÂU HỎI CỦA BẠN" title="Lịch sử hỏi đáp" description="Mở lại cuộc trò chuyện mẫu theo từng môn học." action={<span className="date-pill"><Icon name="clock" size={15} />{items.length} cuộc trò chuyện</span>} /><div className="demo-banner"><span className="demo-pulse" />Lịch sử chỉ tồn tại trong phiên demo đang mở.</div>{items.length ? <div className="student-history-list">{items.map(({ course, question, answer }) => <button className="student-history-item" key={course.id} type="button" onClick={() => onOpen(course.id)}><span className="student-history-icon"><Icon name="sparkles" size={18} /></span><span className="student-history-content"><span className="student-history-course">{course.code} · {course.name}</span><strong>{question.text}</strong><small>{answer ? messageStatusLabel(answer.status ?? "answered", answer.errorKind) : "Chưa có phản hồi"} · {question.createdAt}</small></span><Icon name="arrow" size={17} /></button>)}</div> : <EmptyState title="Chưa có lịch sử hỏi đáp" description="Câu hỏi của bạn sẽ xuất hiện tại đây." />}</div>;
 }
 
 function StudentAccount({ user, courses, onLogout }: { user: DemoUser; courses: Course[]; onLogout: () => void }) {
