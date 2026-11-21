@@ -1,3 +1,4 @@
+import { authReason } from "../config/auth-reason.config";
 import { NextFunction, Response } from "express";
 import mongoose from "mongoose";
 import { AccountRequest } from "../interfaces/request.interface";
@@ -92,7 +93,13 @@ export const verifyService = (secretName: string) => {
       secret.length < 32 ||
       !compareSecret(req.get("authorization") || "", "Bearer " + secret)
     ) {
-      res.status(401).json({ code: "error", message: "Service chưa được xác thực!" });
+      res
+        .status(401)
+        .json({
+          code: "error",
+          message: "Service chưa được xác thực!",
+          reasonCode: authReason.SERVICE_CREDENTIAL_INVALID
+        });
       return;
     }
 
