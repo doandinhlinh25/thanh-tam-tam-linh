@@ -1,0 +1,154 @@
+openapi: 3.0.3
+info:
+  title: Tenant internal authorization for Chat
+  version: 1.0.0
+  description: |
+    Service-authenticated context and course checks. Internal only, not public gateway routes.
+    userId is obtained through Auth introspection; tenantId is an untrusted selector until verified.
+servers:
+  - url: http://tenant:8080/internal
+security:
+  - chatCredential: []
+    userSession: []
+paths:
+  /authorization/context:
+    post:
+      operationId: resolveChatTenantContext
+      summary: Resolve trusted identity and active tenant membership without a course
+      description: |
+        Does not grant course access, resource ownership or quota.
+        Public Chat mutations must also validate Origin and require csrfVerified true.
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: false
+          description: A valid forwarded token sets csrfVerified true; invalid token returns 403. Absence sets false.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tenantId]
+              properties:
+                tenantId:
+                  $ref: '#/components/schemas/ObjectId'
+      responses:
+        '200':
+          description: Auth-verified identity and current active membership
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, successful, data]
+                properties:
+                  code: { type: string, enum: [success] }
+                  successful: { type: boolean, enum: [true] }
+                  data:
+                    type: object
+                    required: [allowed, userId, tenantId, role, csrfVerified]
+                    properties:
+                      allowed: { type: boolean, enum: [true] }
+                      userId: { $ref: '#/components/schemas/ObjectId' }
+                      tenantId: { $ref: '#/components/schemas/ObjectId' }
+                      role: { type: string, enum: [tenant_owner, tenant_admin, lecturer, student] }
+                      csrfVerified: { type: boolean }
+        '400': { $ref: '#/components/responses/ValidationFailure' }
+        '401': { $ref: '#/components/responses/AuthenticationFailure' }
+        '403': { $ref: '#/components/responses/AuthorizationFailure' }
+        '503': { $ref: '#/components/responses/DependencyFailure' }
+        '500': { $ref: '#/components/responses/InternalFailure' }
+  /authorization/check:
+    post:
+      operationId: checkChatCourseAuthorization
+      summary: Check an existing course permission; courseId remains mandatory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tenantId, courseId, action]
+              properties:
+                tenantId: { $ref: '#/components/schemas/ObjectId' }
+                courseId: { $ref: '#/components/schemas/ObjectId' }
+                action:
+                  type: string
+                  enum: ['course:read', 'document:read', 'chat:ask', 'feedback:write']
+      responses:
+        '200':
+          description: Allowed for this verified user, tenant, course and action
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, successful, data]
+                properties:
+                  code: { type: string, enum: [success] }
+                  successful: { type: boolean, enum: [true] }
+                  data:
+                    type: object
+                    required: [allowed, userId, tenantId]
+                    properties:
+                      allowed: { type: boolean, enum: [true] }
+                      userId: { $ref: '#/components/schemas/ObjectId' }
+                      tenantId: { $ref: '#/components/schemas/ObjectId' }
+        '400': { $ref: '#/components/responses/ValidationFailure' }
+        '401': { $ref: '#/components/responses/AuthenticationFailure' }
+        '403': { $ref: '#/components/responses/AuthorizationFailure' }
+        '503': { $ref: '#/components/responses/DependencyFailure' }
+        '500': { $ref: '#/components/responses/InternalFailure' }
+components:
+  securitySchemes:
+    chatCredential:
+      type: http
+      scheme: bearer
+      description: CHAT_SERVICE_TOKEN from the Chat server, never a user JWT
+    userSession:
+      type: apiKey
+      in: cookie
+      name: tokenAdmin
+  schemas:
+    ObjectId:
+      type: string
+      pattern: '^[a-fA-F0-9]{24}$'
+    Failure:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [error] }
+        message: { type: string }
+        reasonCode:
+          type: string
+          enum: [SESSION_INVALID, SERVICE_CREDENTIAL_INVALID, TENANT_ACCESS_DENIED, COURSE_ACCESS_DENIED, CSRF_INVALID, AUTH_SERVICE_CREDENTIAL_INVALID, AUTH_SERVICE_UNAVAILABLE, AUTH_RESPONSE_INVALID]
+  responses:
+    ValidationFailure:
+      description: Invalid body; course checks do not accept a missing courseId
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Failure' }
+    AuthenticationFailure:
+      description: SERVICE_CREDENTIAL_INVALID or SESSION_INVALID; only the latter calls for user sign-in
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Failure' }
+    AuthorizationFailure:
+      description: TENANT_ACCESS_DENIED, COURSE_ACCESS_DENIED or CSRF_INVALID
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Failure' }
+    DependencyFailure:
+      description: Auth unavailable, malformed response or Tenant-to-Auth credential misconfiguration; never a logout instruction
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Failure' }
+
+    InternalFailure:
+      description: Sanitized unexpected server failure; never infer session expiry from a generic failure
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Failure' }

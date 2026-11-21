@@ -1,3 +1,4 @@
+import { authReason } from "../config/auth-reason.config";
 import Joi from "joi";
 import { ServiceError } from "./error.helper";
 import { AccountIdentity } from "../interfaces/request.interface";
@@ -24,24 +25,57 @@ export class AuthClient {
         signal: AbortSignal.timeout(5000)
       });
     } catch {
-      throw new ServiceError("Auth service chưa sẵn sàng!", 503);
+      throw new ServiceError(
+        "Auth service chưa sẵn sàng!",
+        503,
+        authReason.AUTH_SERVICE_UNAVAILABLE
+      );
     }
-    if (response.status === 401) throw new ServiceError("Phiên đăng nhập không hợp lệ!", 401);
+    if (response.status === 401) {
+      let failure: { code?: string; reasonCode?: string };
+      try {
+        failure = (await response.json()) as typeof failure;
+      } catch {
+        throw new ServiceError(
+          "Auth response không hợp lệ!",
+          503,
+          authReason.AUTH_RESPONSE_INVALID
+        );
+      }
+      if (
+        failure?.code === "error" &&
+        failure.reasonCode === authReason.SESSION_INVALID &&
+        route === "/internal/auth/introspect"
+      )
+        throw new ServiceError("Phiên đăng nhập không hợp lệ!", 401, authReason.SESSION_INVALID);
+      if (failure?.code === "error" && failure.reasonCode === authReason.SERVICE_CREDENTIAL_INVALID)
+        throw new ServiceError(
+          "Credential kết nối Auth không hợp lệ!",
+          503,
+          authReason.AUTH_SERVICE_CREDENTIAL_INVALID
+        );
+      throw new ServiceError("Auth response không hợp lệ!", 503, authReason.AUTH_RESPONSE_INVALID);
+    }
     if (response.status === 404) throw new ServiceError("Không tìm thấy tài khoản!", 404);
     if (response.status === 409) throw new ServiceError("Tài khoản không thể nhận lời mời!", 409);
-    if (!response.ok) throw new ServiceError("Không thể xác minh tài khoản!", 503);
+    if (!response.ok)
+      throw new ServiceError(
+        "Không thể xác minh tài khoản!",
+        503,
+        authReason.AUTH_SERVICE_UNAVAILABLE
+      );
     try {
       const data = (await response.json()) as { code: string; account: unknown };
       const { error, value } = accountSchema.validate(data.account);
       if (data.code !== "success" || error) throw new Error();
       return value;
     } catch {
-      throw new ServiceError("Auth response không hợp lệ!", 503);
+      throw new ServiceError("Auth response không hợp lệ!", 503, authReason.AUTH_RESPONSE_INVALID);
     }
   }
 
   static async getIdentity(cookie: string): Promise<AccountIdentity> {
-    if (!cookie) throw new ServiceError("Vui lòng đăng nhập!", 401);
+    if (!cookie) throw new ServiceError("Vui lòng đăng nhập!", 401, authReason.SESSION_INVALID);
     const account = await this.request("/internal/auth/introspect", {}, cookie);
     const { error } = Joi.object({
       platformRole: Joi.string().valid("user", "platform_admin").required(),
@@ -52,7 +86,8 @@ export class AuthClient {
     })
       .unknown(true)
       .validate(account);
-    if (error) throw new ServiceError("Auth identity không hợp lệ!", 503);
+    if (error)
+      throw new ServiceError("Auth identity không hợp lệ!", 503, authReason.AUTH_RESPONSE_INVALID);
     return account;
   }
 

@@ -1,10 +1,18 @@
 import { Router } from "express";
-import { verifyService } from "../middlewares/security.middleware";
+import { verifyService, verifyContextCsrf } from "../middlewares/security.middleware";
 import { verifyToken } from "../middlewares/admin/auth.middleware";
 import * as internalController from "../controllers/internal.controller";
 import * as internalValidate from "../validates/internal.validate";
 
 const router = Router();
+router.post(
+  "/authorization/context",
+  verifyService("CHAT_SERVICE_TOKEN"),
+  verifyToken,
+  internalValidate.authorizationContext,
+  verifyContextCsrf,
+  internalController.authorizationContext
+);
 // Credential Document không được gọi API quota hoặc giả mạo danh tính người dùng.
 router.post(
   "/authorization/course",

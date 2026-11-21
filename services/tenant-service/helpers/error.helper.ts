@@ -4,7 +4,8 @@ import { Response } from "express";
 export class ServiceError extends Error {
   constructor(
     message: string,
-    public status = 400
+    public status = 400,
+    public reasonCode?: string
   ) {
     super(message);
   }
@@ -14,7 +15,13 @@ export class ServiceError extends Error {
 export const errorResponse = (res: Response, error: unknown) => {
   const details = error as { code?: number; name?: string; type?: string };
   if (error instanceof ServiceError) {
-    res.status(error.status).json({ code: "error", message: error.message });
+    res
+      .status(error.status)
+      .json({
+        code: "error",
+        message: error.message,
+        ...(error.reasonCode ? { reasonCode: error.reasonCode } : {})
+      });
     return;
   }
   if (details?.code === 11000) {
