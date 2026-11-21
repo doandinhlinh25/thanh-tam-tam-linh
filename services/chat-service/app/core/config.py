@@ -1,7 +1,10 @@
 """Application configuration loaded from environment variables."""
+import math
 from functools import lru_cache
-from typing import Any, List
-from pydantic import model_validator
+from typing import Any
+from urllib.parse import urlsplit
+
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,7 +37,11 @@ class Settings(BaseSettings):
     RETRIEVAL_SERVICE_URL: str = "http://localhost:8001"
     RETRIEVAL_TIMEOUT_SECONDS: float = 10.0
 
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    TENANT_SERVICE_URL: str = ""
+    CHAT_SERVICE_TOKEN: SecretStr = SecretStr("")
+    TENANT_AUTHORIZATION_TIMEOUT_SECONDS: float = 5.0
+
+    CORS_ORIGINS: list[str] = []
     AUTH_SECRET_KEY: str = "change-me-in-production"
 
     @model_validator(mode="before")
@@ -67,6 +74,61 @@ class Settings(BaseSettings):
                 bool(self.LLM_API_ACCESS_TOKEN and self.LLM_API_ACCESS_TOKEN.strip()),
             )
         )
+
+    def validate_chat_authorization(self) -> None:
+        """Validate the mandatory Chat-to-Tenant security configuration at startup.
+
+        :raises ValueError: If the service URL, shared credential, timeout, or
+            browser Origin allowlist is absent or unsafe.
+        """
+        tenant_url = self.TENANT_SERVICE_URL.strip()
+        parsed_url = urlsplit(tenant_url)
+        try:
+            _ = parsed_url.port
+        except ValueError:
+            raise ValueError("TENANT_SERVICE_URL must have a valid port") from None
+        if (
+            not tenant_url
+            or parsed_url.scheme not in {"http", "https"}
+            or not parsed_url.hostname
+            or parsed_url.username
+            or parsed_url.password
+            or parsed_url.path not in {"", "/"}
+            or parsed_url.query
+            or parsed_url.fragment
+        ):
+            raise ValueError("TENANT_SERVICE_URL must be an absolute HTTP(S) service origin")
+
+        token = self.CHAT_SERVICE_TOKEN.get_secret_value()
+        if len(token) < 32 or "\r" in token or "\n" in token:
+            raise ValueError("CHAT_SERVICE_TOKEN must contain at least 32 safe characters")
+
+        if (
+            not math.isfinite(self.TENANT_AUTHORIZATION_TIMEOUT_SECONDS)
+            or self.TENANT_AUTHORIZATION_TIMEOUT_SECONDS <= 0
+        ):
+            raise ValueError("TENANT_AUTHORIZATION_TIMEOUT_SECONDS must be positive")
+
+        if not self.CORS_ORIGINS or "*" in self.CORS_ORIGINS:
+            raise ValueError("CORS_ORIGINS must explicitly list allowed browser Origins")
+        for origin in self.CORS_ORIGINS:
+            parsed_origin = urlsplit(origin)
+            try:
+                _ = parsed_origin.port
+            except ValueError:
+                raise ValueError("CORS_ORIGINS entries must have a valid port") from None
+            if (
+                origin != origin.strip()
+                or parsed_origin.scheme not in {"http", "https"}
+                or not parsed_origin.netloc
+                or parsed_origin.path
+                or parsed_origin.query
+                or parsed_origin.fragment
+                or parsed_origin.username
+                or parsed_origin.password
+                or origin == "null"
+            ):
+                raise ValueError("CORS_ORIGINS entries must be exact HTTP(S) Origins")
 
 
 @lru_cache
