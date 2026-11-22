@@ -54,28 +54,18 @@ services:
     environment:
       MONGO_USERNAME: ${MONGO_USERNAME}
       MONGO_PASSWORD: ${MONGO_PASSWORD}
+      AUTH_MONGO_USERNAME: ${AUTH_MONGO_USERNAME:?Run sandbox:init}
+      AUTH_MONGO_PASSWORD: ${AUTH_MONGO_PASSWORD:?Run sandbox:init}
+      TENANT_MONGO_USERNAME: ${TENANT_MONGO_USERNAME:?Run sandbox:init}
+      TENANT_MONGO_PASSWORD: ${TENANT_MONGO_PASSWORD:?Run sandbox:init}
+      DOCUMENT_MONGO_USERNAME: ${DOCUMENT_MONGO_USERNAME:?Run sandbox:init}
+      DOCUMENT_MONGO_PASSWORD: ${DOCUMENT_MONGO_PASSWORD:?Run sandbox:init}
     entrypoint: ["mongosh", "--quiet", "--nodb", "--file", "/bootstrap/mongo-init.js"]
     volumes:
       - ./mongo-init.js:/bootstrap/mongo-init.js:ro
+      - ./mongo-permissions.js:/bootstrap/mongo-permissions.js:ro
     networks: [sandbox]
     restart: "no"
-
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: document_sandbox
-      POSTGRES_USER: document
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run npm run sandbox:init}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ../../services/document-service/database/migrations/001_document_upload.sql:/docker-entrypoint-initdb.d/001_document_upload.sql:ro
-    networks: [sandbox]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U document -d document_sandbox"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
 
   redis:
     image: redis:7.4-alpine
@@ -139,7 +129,7 @@ services:
     environment:
       NODE_ENV: test
       PORT: 8080
-      MONGODB_URI: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017/auth_sandbox?authSource=admin&replicaSet=sandbox-rs
+      MONGODB_URI: mongodb://${AUTH_MONGO_USERNAME}:${AUTH_MONGO_PASSWORD}@mongo:27017/auth_sandbox?authSource=auth_sandbox&replicaSet=sandbox-rs
       JWT_SECRET: ${JWT_SECRET:?Run npm run sandbox:init}
       AUTH_TENANT_TOKEN: ${AUTH_TENANT_TOKEN:?Run npm run sandbox:init}
       SUPER_ADMIN_ID: ${SUPER_ADMIN_ID}
@@ -161,7 +151,7 @@ services:
     environment:
       NODE_ENV: test
       PORT: 8080
-      MONGODB_URI: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017/tenant_sandbox?authSource=admin&replicaSet=sandbox-rs
+      MONGODB_URI: mongodb://${TENANT_MONGO_USERNAME}:${TENANT_MONGO_PASSWORD}@mongo:27017/tenant_sandbox?authSource=tenant_sandbox&replicaSet=sandbox-rs
       AUTH_SERVICE_URL: http://auth:8080
       AUTH_TENANT_TOKEN: ${AUTH_TENANT_TOKEN}
       DOCUMENT_SERVICE_TOKEN: ${DOCUMENT_SERVICE_TOKEN:?Run npm run sandbox:init}
@@ -177,16 +167,13 @@ services:
       dockerfile: services/document-service/Dockerfile
     restart: unless-stopped
     depends_on:
-      postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       s3-init: { condition: service_completed_successfully }
       tenant: { condition: service_healthy }
     environment:
       PORT: 8080
       MAX_UPLOAD_BYTES: 10485760
-      DOCUMENT_JDBC_URL: jdbc:postgresql://postgres:5432/document_sandbox
-      DOCUMENT_DATABASE_USERNAME: document
-      DOCUMENT_DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      DOCUMENT_MONGODB_URI: mongodb://${DOCUMENT_MONGO_USERNAME}:${DOCUMENT_MONGO_PASSWORD}@mongo:27017/document_sandbox?authSource=document_sandbox&replicaSet=sandbox-rs
       DOCUMENT_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       DOCUMENT_S3_BUCKET: document-sandbox-private
       DOCUMENT_S3_REGION: us-east-1

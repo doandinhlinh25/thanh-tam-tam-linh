@@ -190,7 +190,45 @@ async function main() {
         ).toString()
       ).exp * 1000
     ).toISOString();
+  const otherTenantData = success(
+    await api(
+      tenant,
+      "/admin/tenant/create",
+      "POST",
+      { name: "Other upload " + run, code: "other-upload-" + run, ownerId: env.SUPER_ADMIN_ID },
+      admin
+    )
+  );
+  const otherTenantId = otherTenantData.tenant._id;
+  success(
+    await api(
+      tenant,
+      "/admin/tenant/" + otherTenantId + "/members/add",
+      "POST",
+      { userId: student.id, role: "lecturer" },
+      admin
+    )
+  );
+  const otherCourse = success(
+    await api(
+      tenant,
+      "/admin/tenant/" + otherTenantId + "/courses/create",
+      "POST",
+      { name: "Other tenant course", code: "OTHER-" + run.toUpperCase(), status: "active" },
+      admin
+    )
+  );
+  success(
+    await api(
+      tenant,
+      "/admin/tenant/" + otherTenantId + "/courses/" + otherCourse.course._id + "/assign-lecturer",
+      "POST",
+      { userId: student.id },
+      admin
+    )
+  );
   const fixture = {
+    otherTenant: { tenantId: otherTenantId, courseId: otherCourse.course._id },
     createdAt: new Date().toISOString(),
     authBaseUrl: auth,
     tenantBaseUrl: tenant,

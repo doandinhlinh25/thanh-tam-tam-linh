@@ -31,3 +31,35 @@ for (let attempt = 0; attempt < 90 && !ready; attempt++) {
 }
 if (!ready) throw new Error("Sandbox MongoDB primary did not become ready");
 print("Sandbox MongoDB replica set ready");
+
+// Root is used here only; applications authenticate against their own database.
+const bootstrap = new Mongo("mongodb://mongo:27017/?directConnection=true");
+bootstrap.getDB("admin").auth(process.env.MONGO_USERNAME, process.env.MONGO_PASSWORD);
+for (const [domain, database] of [
+  ["AUTH", "auth_sandbox"],
+  ["TENANT", "tenant_sandbox"],
+  ["DOCUMENT", "document_sandbox"]
+]) {
+  const target = bootstrap.getDB(database);
+  const username = process.env[domain + "_MONGO_USERNAME"];
+  const password = process.env[domain + "_MONGO_PASSWORD"];
+  if (!username || !password || username === process.env.MONGO_USERNAME)
+    throw new Error("Missing isolated application credentials");
+  const existing = target.getUser(username);
+  if (!existing)
+    target.createUser({
+      user: username,
+      pwd: password,
+      roles: [{ role: "readWrite", db: database }]
+    });
+  else if (
+    existing.roles.length !== 1 ||
+    existing.roles[0].role !== "readWrite" ||
+    existing.roles[0].db !== database
+  )
+    throw new Error("Existing app roles differ; explicit operator migration is required");
+  const verification = new Mongo("mongodb://mongo:27017/?directConnection=true");
+  verification.getDB(database).auth(username, password);
+  verification.getDB(database).getCollection("r1_readiness_probe").findOne({});
+}
+print("Three isolated MongoDB app accounts ready; existing roles/passwords were not changed");

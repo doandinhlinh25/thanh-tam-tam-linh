@@ -1,3 +1,5 @@
+import { uploadPdf } from "../infrastructure/sandbox/pdf-fixture.mjs";
+import { documentRows } from "../infrastructure/sandbox/document-mongo.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,13 +9,22 @@ import { readEnv, validateEnv } from "./sandbox-env.mjs";
 import { compose } from "./sandbox.mjs";
 import { s3Authorization } from "./sandbox-smoke.mjs";
 
-const HTTP_STATUS = Object.freeze({ OK: 200, ACCEPTED: 202, UNAUTHORIZED: 401, FORBIDDEN: 403, CONFLICT: 409, UNAVAILABLE: 503 });
-const ERROR_CODE = Object.freeze({ CONFLICT: "DOCUMENT_IDEMPOTENCY_CONFLICT", UNAVAILABLE: "DOCUMENT_DEPENDENCY_UNAVAILABLE" });
+const HTTP_STATUS = Object.freeze({
+  OK: 200,
+  ACCEPTED: 202,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  CONFLICT: 409,
+  UNAVAILABLE: 503
+});
+const ERROR_CODE = Object.freeze({
+  CONFLICT: "DOCUMENT_IDEMPOTENCY_CONFLICT",
+  UNAVAILABLE: "DOCUMENT_DEPENDENCY_UNAVAILABLE"
+});
 const ROLE = Object.freeze({ LECTURER: "lecturer", STUDENT: "student" });
 const PDF_MIME = "application/pdf";
 const BUCKET_NAME = "document-sandbox-private";
 const REDIS_STREAM = "document-ingestion";
-const DOCUMENT_DATABASE = "document_sandbox";
 const HOST = "127.0.0.1";
 const HEALTH_PATH = "/health/ready";
 const UPLOAD_PATH_PREFIX = "/api/v1/courses/";
@@ -29,11 +40,12 @@ const fixture = JSON.parse(
   fs.readFileSync(path.join(root, ".test-data/document-upload-fixture.json"), "utf8")
 );
 const runId = randomUUID().slice(0, 8);
-const uploadUrl = new URL(UPLOAD_PATH_PREFIX + fixture.courseId + UPLOAD_PATH_SUFFIX, fixture.documentBaseUrl);
-const bucketUrl = new URL("/" + BUCKET_NAME, "http://" + HOST + ":" + env.S3_PORT);
-const pdf = Buffer.from(
-  "%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n"
+const uploadUrl = new URL(
+  UPLOAD_PATH_PREFIX + fixture.courseId + UPLOAD_PATH_SUFFIX,
+  fixture.documentBaseUrl
 );
+const bucketUrl = new URL("/" + BUCKET_NAME, "http://" + HOST + ":" + env.S3_PORT);
+const pdf = uploadPdf();
 const changedPdf = Buffer.concat([pdf, Buffer.from("% changed content\n")]);
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 
@@ -41,24 +53,24 @@ assert.match(fixture.tenantId, /^[a-f0-9]{24}$/);
 assert.match(fixture.courseId, /^[a-f0-9]{24}$/);
 assert.match(fixture.allowed.id, /^[a-f0-9]{24}$/);
 assert.match(fixture.denied.id, /^[a-f0-9]{24}$/);
+assert.match(
+  fixture.otherTenant?.tenantId || "",
+  /^[a-f0-9]{24}$/,
+  "Regenerate fixtures for two real tenants"
+);
+assert.match(fixture.otherTenant?.courseId || "", /^[a-f0-9]{24}$/);
+assert.notEqual(fixture.otherTenant.courseId, fixture.courseId);
+assert.notEqual(fixture.otherTenant.tenantId, fixture.tenantId);
 assert.equal(fixture.allowed.role, ROLE.LECTURER);
 assert.equal(fixture.denied.role, ROLE.STUDENT);
 assert.ok(new Date(fixture.allowed.expiresAt).getTime() > Date.now());
 assert.ok(new Date(fixture.denied.expiresAt).getTime() > Date.now());
 assert.equal(fixture.documentBaseUrl, "http://" + HOST + ":" + env.DOCUMENT_PORT);
 
-function postgres(sql) {
-  return compose(
-    ["exec", "-T", "postgres", "psql", "-U", "document", "-d", DOCUMENT_DATABASE, "-Atc", sql],
-    env,
-    true
-  );
-}
-
-async function storedObjects() {
+async function storedObjects(scope = fixture) {
   const url = new URL(bucketUrl);
   url.searchParams.set("list-type", "2");
-  url.searchParams.set("prefix", fixture.tenantId + "/" + fixture.courseId + "/");
+  url.searchParams.set("prefix", scope.tenantId + "/" + scope.courseId + "/");
   url.searchParams.sort();
   const response = await fetch(url, {
     headers: s3Authorization(env, url, "GET"),
@@ -70,7 +82,7 @@ async function storedObjects() {
   return [...xml.matchAll(/<Key>([^<]*)<\/Key>/g)].map((match) => match[1]).sort();
 }
 
-function ingestionEvents() {
+function ingestionEvents(scope = fixture) {
   const entries = JSON.parse(
     compose(
       ["exec", "-T", "redis", "redis-cli", "--json", "XRANGE", REDIS_STREAM, "-", "+"],
@@ -80,30 +92,21 @@ function ingestionEvents() {
   );
   return entries
     .map(([, fields]) => JSON.parse(fields[fields.indexOf("payload") + 1]))
-    .filter((event) => event.tenantId === fixture.tenantId)
+    .filter((event) => event.tenantId === scope.tenantId)
     .map((event) => event.documentId)
     .sort();
 }
 
-async function snapshot() {
-  const scope =
-    "tenant_id = '" + fixture.tenantId + "' AND course_id = '" + fixture.courseId + "'";
-  const documents = JSON.parse(
-    postgres("SELECT COALESCE(json_agg(row_to_json(d)), '[]'::json) FROM documents d WHERE " + scope)
-  ).sort((first, second) => first.document_id.localeCompare(second.document_id));
-  const jobs = Number(
-    postgres(
-      "SELECT count(*) FROM ingestion_jobs j JOIN documents d ON d.document_id = j.document_id WHERE d." +
-        scope.replace(" AND ", " AND d.")
-    )
-  );
-  return { documents, jobs, objects: await storedObjects(), events: ingestionEvents() };
+async function snapshot(scope = fixture) {
+  const { documents, jobs } = documentRows(env, scope.tenantId, scope.courseId);
+  documents.sort((a, b) => a.document_id.localeCompare(b.document_id));
+  return { documents, jobs, objects: await storedObjects(scope), events: ingestionEvents(scope) };
 }
 
-async function upload(session, key, bytes = pdf, extraHeaders = {}) {
+async function upload(session, key, bytes = pdf, extraHeaders = {}, targetUrl = uploadUrl) {
   const form = new FormData();
   form.append("file", new Blob([bytes], { type: PDF_MIME }), "lesson.pdf");
-  return fetch(uploadUrl, {
+  return fetch(targetUrl, {
     method: "POST",
     headers: {
       ...(session?.cookie ? { Cookie: session.cookie } : {}),
@@ -123,6 +126,11 @@ async function verifyStoredPdf(row, bytes) {
   const url = new URL(
     "/" + BUCKET_NAME + "/" + row.storage_key.split("/").map(encodeURIComponent).join("/"),
     bucketUrl
+  );
+  assert.equal(
+    (await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })).status,
+    HTTP_STATUS.FORBIDDEN,
+    "S3 object must not allow anonymous reads"
   );
   const response = await fetch(url, {
     headers: s3Authorization(env, url, "GET"),
@@ -148,9 +156,28 @@ async function waitForTenant() {
 
 async function main() {
   assert.equal(
-    (await fetch(fixture.documentBaseUrl + HEALTH_PATH, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })).status,
+    (
+      await fetch(fixture.documentBaseUrl + HEALTH_PATH, {
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+      })
+    ).status,
     HTTP_STATUS.OK
   );
+  const otherCourseResponse = await fetch(
+    fixture.tenantBaseUrl +
+      "/admin/tenant/" +
+      fixture.otherTenant.tenantId +
+      "/courses/detail/" +
+      fixture.otherTenant.courseId,
+    { headers: { Cookie: fixture.denied.cookie }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }
+  );
+  assert.equal(
+    otherCourseResponse.status,
+    HTTP_STATUS.OK,
+    "U6 requires an existing second tenant/course"
+  );
+  const otherCourseBody = await otherCourseResponse.json();
+  assert.equal(otherCourseBody.course.tenantId, fixture.otherTenant.tenantId);
   const initial = await snapshot();
   const key = "upload-e2e-" + runId;
 
@@ -195,8 +222,25 @@ async function main() {
   unchanged(afterU1, await snapshot());
   console.log("PASS U5: changed bytes with the same key return 409 without side effects");
 
-  const forged = { "X-Tenant-Id": "000000000000000000000000", "X-User-Id": fixture.allowed.id };
-  assert.equal((await upload(fixture.denied, "u6-denied-" + runId, pdf, forged)).status, HTTP_STATUS.FORBIDDEN);
+  assert.notEqual(fixture.otherTenant.tenantId, fixture.tenantId);
+  const otherBefore = await snapshot(fixture.otherTenant);
+  const crossTenant = await upload(
+    fixture.allowed,
+    "u6-cross-" + runId,
+    pdf,
+    { "X-Tenant-Id": fixture.tenantId },
+    new URL(
+      UPLOAD_PATH_PREFIX + fixture.otherTenant.courseId + UPLOAD_PATH_SUFFIX,
+      fixture.documentBaseUrl
+    )
+  );
+  assert.equal(crossTenant.status, HTTP_STATUS.FORBIDDEN);
+  unchanged(otherBefore, await snapshot(fixture.otherTenant));
+  const forged = { "X-Tenant-Id": fixture.otherTenant.tenantId, "X-User-Id": fixture.allowed.id };
+  assert.equal(
+    (await upload(fixture.denied, "u6-denied-" + runId, pdf, forged)).status,
+    HTTP_STATUS.FORBIDDEN
+  );
   unchanged(afterU1, await snapshot());
   const forgedAllowed = await upload(fixture.allowed, "u6-allowed-" + runId, pdf, {
     ...forged,
@@ -211,10 +255,14 @@ async function main() {
   assert.equal(afterU6.objects.length, afterU1.objects.length + 1);
   assert.deepEqual(afterU6.events, [...afterU1.events, forgedBody.data.documentId].sort());
   assert.equal(
-    afterU6.documents.find((row) => row.document_id === forgedBody.data.documentId).uploader_user_id,
+    afterU6.documents.find((row) => row.document_id === forgedBody.data.documentId)
+      .uploader_user_id,
     fixture.allowed.id
   );
-  console.log("PASS U6: forged identity headers neither elevate nor replace the verified user");
+  unchanged(otherBefore, await snapshot(fixture.otherTenant));
+  console.log(
+    "PASS U6: two real tenants; forged identity headers neither elevate nor replace the verified user"
+  );
 
   compose(["stop", "tenant"], env, true);
   try {
@@ -227,10 +275,14 @@ async function main() {
     await waitForTenant();
   }
   console.log("PASS U7: Tenant outage returns 503 without side effects; Tenant restarted");
-  console.log("PASS U1-U7: run=" + runId + ", tenant=" + fixture.tenantId + ", course=" + fixture.courseId);
+  console.log(
+    "PASS U1-U7: run=" + runId + ", tenant=" + fixture.tenantId + ", course=" + fixture.courseId
+  );
 }
 
 main().catch((error) => {
-  console.error(error instanceof assert.AssertionError ? error.message : "Upload E2E failed: " + error.message);
+  console.error(
+    error instanceof assert.AssertionError ? error.message : "Upload E2E failed: " + error.message
+  );
   process.exitCode = 1;
 });

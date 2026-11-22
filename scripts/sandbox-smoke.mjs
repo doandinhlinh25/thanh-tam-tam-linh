@@ -1,3 +1,5 @@
+import { uploadPdf } from "../infrastructure/sandbox/pdf-fixture.mjs";
+import { documentRows } from "../infrastructure/sandbox/document-mongo.mjs";
 import assert from "node:assert/strict";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { compose } from "./sandbox.mjs";
@@ -19,7 +21,9 @@ export function s3Authorization(env, url, method) {
   const headers =
     "host:" + url.host + "\nx-amz-content-sha256:" + payload + "\nx-amz-date:" + stamp + "\n";
   const signed = "host;x-amz-content-sha256;x-amz-date";
-  const canonical = [method, url.pathname, url.search.slice(1), headers, signed, payload].join("\n");
+  const canonical = [method, url.pathname, url.search.slice(1), headers, signed, payload].join(
+    "\n"
+  );
   const key = hmac(
     hmac(hmac(hmac("AWS4" + env.S3_SECRET_KEY, date), "us-east-1"), "s3"),
     "aws4_request"
@@ -48,9 +52,7 @@ export async function smoke(env) {
     origin = "http://localhost:3000";
   const run = randomUUID().slice(0, 8),
     password = "Sandbox-" + randomUUID();
-  const pdf = Buffer.from(
-    "%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n"
-  );
+  const pdf = uploadPdf();
   async function api(base, route, method = "GET", body, user, extra = {}) {
     const headers = { Origin: origin, ...extra };
     if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -171,24 +173,10 @@ export async function smoke(env) {
   const replay = await upload(owner.user, "upload-" + run);
   assert.equal(replay.status, 202);
   assert.equal((await replay.json()).data.documentId, documentId);
-  const row = JSON.parse(
-    compose(
-      [
-        "exec",
-        "-T",
-        "postgres",
-        "psql",
-        "-U",
-        "document",
-        "-d",
-        "document_sandbox",
-        "-Atc",
-        "SELECT row_to_json(d) FROM documents d WHERE document_id = '" + documentId + "'"
-      ],
-      env,
-      true
-    )
+  const row = documentRows(env, tenantId, courseId).documents.find(
+    (row) => row.document_id === documentId
   );
+  assert.ok(row);
   assert.equal(row.tenant_id, tenantId);
   assert.equal(row.uploader_user_id, owner.id);
   assert.equal(row.checksum_sha256, sha256(pdf));
@@ -235,7 +223,7 @@ export async function smoke(env) {
   assert.equal(stored.status, 200);
   assert.equal(sha256(Buffer.from(await stored.arrayBuffer())), sha256(pdf));
   console.log(
-    "PASS: readiness; JWT login; service tokens; tenant/course ACL; anonymous/outsider rejection; PDF upload and retry; PostgreSQL metadata; Redis event; private S3 bytes."
+    "PASS: readiness; JWT login; service tokens; tenant/course ACL; anonymous/outsider rejection; PDF upload and retry; MongoDB metadata; Redis event; private S3 bytes."
   );
   console.log(
     "Sandbox fixture IDs: tenant=" + tenantId + ", course=" + courseId + ", document=" + documentId

@@ -35,7 +35,7 @@ public class UploadServiceImpl implements IUploadService {
     /**
      * Kết nối quy trình tải lên với các bộ kết nối hạ tầng.
      *
-     * @param repository kho tài liệu Spring Data JPA
+     * @param repository kho tài liệu MongoDB
      * @param objectStore kho lưu trữ tệp PDF
      * @param queue bộ gửi yêu cầu xử lý dữ liệu
      * @param validator bộ kiểm tra ràng buộc dữ liệu của thực thể
