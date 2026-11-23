@@ -2,6 +2,9 @@ import { Response } from "express";
 import { AccountRequest } from "../../interfaces/request.interface";
 import { AuthService } from "../../services/auth.service";
 import { errorResponse } from "../../helpers/error.helper";
+import { SessionService } from "../../services/session.service";
+import { ProfileService } from "../../services/profile.service";
+import { requestMetadata } from "../../helpers/request-metadata.helper";
 
 const cookieName = () => "tokenAdmin";
 const cookieOptions = () => ({
@@ -15,7 +18,18 @@ const cookieOptions = () => ({
 export const loginPost = async (req: AccountRequest, res: Response) => {
   try {
     const { email, password, rememberPassword } = req.body;
-    const result = await AuthService.login(email, password, rememberPassword);
+    const result = await AuthService.login(email, password, rememberPassword, requestMetadata(req));
+    if (result.mfaRequired) {
+      res.status(202).json({
+        code: "success",
+        data: {
+          mfaRequired: true,
+          challengeToken: result.challengeToken,
+          expiresIn: result.expiresIn
+        }
+      });
+      return;
+    }
 
     req.adminId = result.userId;
     res.cookie(cookieName(), result.token, { ...cookieOptions(), maxAge: result.maxAge });
@@ -27,6 +41,7 @@ export const loginPost = async (req: AccountRequest, res: Response) => {
 
 export const logoutPost = async (req: AccountRequest, res: Response) => {
   try {
+    if (req.accountUser) await SessionService.revoke(req.accountUser);
     res.clearCookie(cookieName(), cookieOptions());
     res.json({ code: "success", message: "Đăng xuất thành công!" });
   } catch (error) {
@@ -35,12 +50,15 @@ export const logoutPost = async (req: AccountRequest, res: Response) => {
 };
 
 export const profileGet = async (req: AccountRequest, res: Response) => {
-  const { id, email, fullName, platformRole, isSuperAdmin } = req.accountUser!;
-  res.json({
-    code: "success",
-    message: "Lấy tài khoản thành công!",
-    account: { id, email, fullName, platformRole, isSuperAdmin: isSuperAdmin === true }
-  });
+  try {
+    res.json({
+      code: "success",
+      message: "Lấy tài khoản thành công!",
+      account: await ProfileService.get(req.accountUser!)
+    });
+  } catch (error) {
+    errorResponse(res, error);
+  }
 };
 
 export const csrfGet = async (req: AccountRequest, res: Response) => {

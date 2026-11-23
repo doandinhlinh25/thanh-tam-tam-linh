@@ -51,6 +51,8 @@ export const rateLimit = (scope: string, limit: number, seconds: number) => {
     try {
       const window = Math.floor(Date.now() / (seconds * 1000));
       const subjects = [req.ip || "unknown"];
+      if (req.accountUser?.id) subjects.push(req.accountUser.id);
+      if (res.locals.authRateSubject) subjects.push(res.locals.authRateSubject);
       if (typeof req.body?.email === "string") {
         subjects.push(req.body.email.trim().toLowerCase());
       }
@@ -93,13 +95,11 @@ export const verifyService = (secretName: string) => {
       secret.length < 32 ||
       !compareSecret(req.get("authorization") || "", "Bearer " + secret)
     ) {
-      res
-        .status(401)
-        .json({
-          code: "error",
-          message: "Service chưa được xác thực!",
-          reasonCode: authReason.SERVICE_CREDENTIAL_INVALID
-        });
+      res.status(401).json({
+        code: "error",
+        message: "Service chưa được xác thực!",
+        reasonCode: authReason.SERVICE_CREDENTIAL_INVALID
+      });
       return;
     }
 

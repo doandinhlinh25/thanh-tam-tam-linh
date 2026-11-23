@@ -1,7 +1,8 @@
+import { MfaService } from "./mfa.service";
+import { SessionService } from "./session.service";
+import { AuthSecurityRepository } from "../repositories/auth-security.repository";
 import { getSuperAdminConfig, getSuperAdminConfigHash } from "../config/super-admin.config";
-import { getJwtSecret } from "../config/jwt.config";
 import mongoose from "mongoose";
-import jwt from "jsonwebtoken";
 import Joi from "joi";
 import slugify from "slugify";
 import AccountAdmin from "../models/account-admin.model";
@@ -15,68 +16,15 @@ import { sendMail } from "../helpers/mail.helper";
 import { ServiceError } from "../helpers/error.helper";
 
 export class AuthService {
-  /** Super Admin dùng .env; tài khoản khác dùng bcrypt/Argon2 trong MongoDB. */
-  static async login(email: string, password: string, rememberPassword: boolean) {
-    const superAdmin = getSuperAdminConfig();
-    const normalizedEmail = email.trim().toLowerCase();
-    const isSuperAdmin = !!superAdmin && normalizedEmail === superAdmin.email;
-    let userId: string;
-    let authVersion = 0;
-
-    if (isSuperAdmin) {
-      if (!compareSecret(password, superAdmin!.password)) {
-        await AuthAudit.create({ action: "login", outcome: "denied" });
-        throw new ServiceError("Email hoặc mật khẩu không chính xác!", 401);
-      }
-      userId = superAdmin!.id;
-    } else {
-      const account = await AccountAdmin.findOne({ email: normalizedEmail, deleted: false }).select(
-        "+password"
-      );
-      const validPassword = await verifyPassword(password, account?.password);
-      if (
-        !account ||
-        !validPassword ||
-        account.status !== "active" ||
-        account.id === superAdmin?.id
-      ) {
-        await AuthAudit.create({ action: "login", outcome: "denied" });
-        throw new ServiceError("Email hoặc mật khẩu không chính xác!", 401);
-      }
-      userId = account.id;
-      authVersion = account.authVersion || 0;
-      await AccountAdmin.updateOne({ _id: account._id }, { lastLoginAt: new Date() });
-    }
-
-    const seconds = Number(
-      rememberPassword
-        ? process.env.REMEMBER_SECONDS || 604800
-        : process.env.SESSION_SECONDS || 86400
-    );
-    if (!Number.isInteger(seconds) || seconds <= 0)
-      throw new ServiceError("Thời hạn JWT không hợp lệ!", 500);
-
-    const tokenId = createToken();
-    const token = jwt.sign(
-      {
-        id: userId,
-        email: normalizedEmail,
-        isSuperAdmin,
-        authVersion,
-        ...(isSuperAdmin ? { superAdminConfigHash: getSuperAdminConfigHash(superAdmin!) } : {})
-      },
-      getJwtSecret(),
-      {
-        algorithm: "HS256",
-        expiresIn: seconds,
-        jwtid: tokenId
-      }
-    );
-
-    await AuthAudit.create({ userId, action: "login", outcome: "success" });
-    return { token, csrfToken: createCsrfToken(tokenId), maxAge: seconds * 1000, userId };
+  /** Login chỉ cấp JWT sau khi session/MFA được xác minh và lưu thành công. */
+  static async login(
+    email: string,
+    password: string,
+    rememberPassword: boolean,
+    metadata = { ip: "", userAgent: "" }
+  ) {
+    return MfaService.beginLogin(email, password, rememberPassword, metadata);
   }
-
   /** Chỉ nhận payload sau jwt.verify(); không lấy quyền từ claim client tự gửi. */
   static async getIdentity(decoded: unknown): Promise<AccountIdentity> {
     const { error, value } = Joi.object({
@@ -95,6 +43,7 @@ export class AuthService {
     if (error) throw new ServiceError("Token không hợp lệ!", 401);
 
     const superAdmin = getSuperAdminConfig();
+    await SessionService.verify(value.id, value.jti, await SessionService.principal(value.id));
     const tokenIdentity = {
       tokenId: value.jti as string,
       csrfHash: hashToken(createCsrfToken(value.jti))
@@ -154,7 +103,8 @@ export class AuthService {
       throw new ServiceError("Mật khẩu Super Admin được thay đổi trong .env!", 403);
     const passwordHash = await hashPassword(newPassword);
 
-    await mongoose.connection.transaction(async (session) => {
+    await AuthSecurityRepository.run(identity.id, async (state, session) => {
+      await SessionService.assertCurrent(identity, state, session);
       const account = await AccountAdmin.findOne({
         _id: identity.id,
         status: "active",
@@ -176,6 +126,7 @@ export class AuthService {
         { consumedAt: new Date() },
         { session }
       );
+      await SessionService.invalidate(identity.id, state, session);
       await AuthAudit.create(
         [{ userId: account._id, action: "password_change", outcome: "success" }],
         { session }
@@ -249,8 +200,13 @@ export class AuthService {
   /** Tiêu thụ reset token đúng một lần trong cùng transaction thay mật khẩu. */
   static async resetPassword(token: string, password: string) {
     const passwordHash = await hashPassword(password);
-
-    await mongoose.connection.transaction(async (session) => {
+    const pending = await ActionToken.findOne({
+      tokenHash: hashToken(token),
+      consumedAt: null,
+      expiresAt: { $gt: new Date() }
+    });
+    if (!pending) throw new ServiceError("Token đã hết hạn hoặc đã được sử dụng!");
+    await AuthSecurityRepository.run(String(pending.userId), async (state, session) => {
       const action = await ActionToken.findOneAndUpdate(
         {
           tokenHash: hashToken(token),
@@ -287,6 +243,7 @@ export class AuthService {
         { consumedAt: new Date() },
         { session }
       );
+      await SessionService.invalidate(String(action.userId), state, session);
       await AuthAudit.create(
         [{ userId: action.userId, action: "password_reset", outcome: "success" }],
         { session }

@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { connectDB } from "./config/database";
 import app from "./app";
+import { getMfaConfig } from "./helpers/mfa-crypto.helper";
 
 if (process.env.NODE_ENV !== "test") dotenv.config();
 
@@ -18,6 +19,7 @@ const start = async () => {
   }
   getSuperAdminConfig();
   getJwtSecret();
+  getMfaConfig();
   await connectDB();
   const port = Number(process.env.PORT || 4001);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("PORT không hợp lệ!");
@@ -35,7 +37,9 @@ const start = async () => {
 };
 
 start().catch(async () => {
-  console.error("Không thể khởi động Auth service, kiểm tra cấu hình MongoDB!");
+  console.error(
+    "Không thể khởi động Auth service, kiểm tra cấu hình Auth/MFA và MongoDB replica set!"
+  );
   process.exitCode = 1;
   await mongoose.disconnect();
 });

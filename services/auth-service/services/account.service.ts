@@ -5,6 +5,8 @@ import slugify from "slugify";
 import AccountAdmin from "../models/account-admin.model";
 import { ServiceError } from "../helpers/error.helper";
 import { AuthService } from "./auth.service";
+import { AuthSecurityRepository } from "../repositories/auth-security.repository";
+import { SessionService } from "./session.service";
 
 export class AccountService {
   static async getAccountById(id: string) {
@@ -89,7 +91,7 @@ export class AccountService {
     if (account.platformRole === "platform_admin" && data.status && data.status !== "active") {
       throw new ServiceError("Không được khóa platform admin qua endpoint này!");
     }
-    return mongoose.connection.transaction(async (session) => {
+    return AuthSecurityRepository.run(id, async (state, session) => {
       const updated = await AccountAdmin.findOneAndUpdate(
         { _id: id, deleted: false },
         {
@@ -109,6 +111,7 @@ export class AccountService {
         { new: true, runValidators: true, session }
       );
 
+      if (data.status) await SessionService.invalidate(id, state, session);
       return updated;
     });
   }
@@ -118,12 +121,13 @@ export class AccountService {
     if (account.platformRole === "platform_admin") {
       throw new ServiceError("Không được xóa platform admin qua endpoint này!");
     }
-    await mongoose.connection.transaction(async (session) => {
+    await AuthSecurityRepository.run(id, async (state, session) => {
       await AccountAdmin.updateOne(
         { _id: id },
         { $set: { deleted: true, deletedAt: new Date() }, $inc: { authVersion: 1 } },
         { session }
       );
+      await SessionService.invalidate(id, state, session);
     });
   }
 

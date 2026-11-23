@@ -153,6 +153,9 @@ const startService = async (
           }
         : {}),
       APP_URL: origin,
+      AUTH_MFA_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
+      AUTH_MFA_KEY_ID: "test-key",
+      AUTH_MFA_ISSUER: "Thanh Tam Test",
       SMTP_URL: "smtp://127.0.0.1:" + smtpPort,
       MAIL_FROM: "platform@example.com",
       ...overrides
@@ -370,7 +373,7 @@ test("Super Admin: env login, middleware permissions, no AccountAdmin document a
   );
   assert.equal(
     (await request(authUrl, "GET", "/admin/account/me", undefined, superSession)).status,
-    200
+    401
   );
 });
 
@@ -467,10 +470,10 @@ test("JWT: duy-tam login/logout, bcrypt, expiry, signature and privilege checks"
   assert.equal(logout.status, 200);
   assert.equal(logout.cookie, "tokenAdmin=");
   assert.ok(logout.setCookie?.includes("Expires=Thu, 01 Jan 1970"));
-  // Như nhánh gốc: logout xóa cookie browser, không lưu blacklist JWT phía server.
+  // Logout thu hồi session server-side theo kế hoạch Auth features đã duyệt.
   assert.equal(
     (await request(authUrl, "GET", "/admin/account/me", undefined, normalUser)).status,
-    200
+    401
   );
   assert.equal(
     (
@@ -1402,7 +1405,7 @@ test("Auth JWT: logout clears cookie; expiry/reset invalidate JWT; malformed JSO
   );
   assert.equal(
     (await request(authUrl, "GET", "/admin/account/me", undefined, temporary)).status,
-    200
+    401
   );
   const expires = await login("outsider");
   const token = expires.cookie!.slice("tokenAdmin=".length);

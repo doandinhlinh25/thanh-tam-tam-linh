@@ -1,0 +1,1183 @@
+openapi: 3.0.3
+info:
+  title: Auth account and security API
+  version: 1.0.0
+  description: Implementation contract for duy-tam Auth features. Session JWTs
+    without server records require sign-in. MFA applies equally to env Super
+    Admin. Public browser mutations validate Origin and session-bound CSRF.
+    Password reset never disables MFA. Internal introspection remains in the
+    existing Auth–Tenant contract.
+servers:
+  - url: /api/v1/auth
+  - url: /admin/account
+    description: Equivalent legacy alias
+paths:
+  /login:
+    post:
+      operationId: login
+      summary: Verify password; issue session or return MFA challenge
+      security: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Login"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoggedIn"
+        "202":
+          description: MFA required; no JWT/cookie/CSRF is issued yet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaChallenge"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /login/2fa:
+    post:
+      operationId: completeMfaLogin
+      summary: Consume MFA challenge and issue session
+      security: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginFactor"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoggedIn"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /logout:
+    post:
+      operationId: logout
+      summary: Revoke current session and clear cookie
+      description: Valid sessions require X-CSRF-Token. Missing/invalid/expired cookie
+        is cleared idempotently with valid Origin. Database failure must not be
+        misclassified as an invalid session.
+      security: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Success"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /logout-all:
+    post:
+      operationId: logoutAll
+      summary: Reauthenticate and revoke all sessions including current
+      security:
+        - tokenAdmin: []
+          csrf: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Reauth"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Success"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List own currently active sessions
+      security:
+        - tokenAdmin: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sessions"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /sessions/{sessionId}:
+    delete:
+      operationId: revokeSession
+      summary: Revoke own session; clear cookie when current
+      security:
+        - tokenAdmin: []
+          csrf: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-fA-F0-9]{24}$
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Success"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /me:
+    get:
+      operationId: getProfile
+      summary: Get current profile including MFA status
+      security:
+        - tokenAdmin: []
+      parameters: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResult"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /profile:
+    patch:
+      operationId: updateProfile
+      summary: Update own allowlisted profile; Super Admin is env-managed
+      security:
+        - tokenAdmin: []
+          csrf: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResult"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /email-change/request:
+    post:
+      operationId: requestEmailChange
+      summary: Send verification to new email without changing current email
+      security:
+        - tokenAdmin: []
+          csrf: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Success"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /email-change/confirm:
+    post:
+      operationId: confirmEmailChange
+      summary: Confirm current user token, change email and revoke all sessions
+      security:
+        - tokenAdmin: []
+          csrf: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailConfirm"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Success"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /2fa/status:
+    get:
+      operationId: mfaStatus
+      summary: Read enabled state and recovery code count
+      security:
+        - tokenAdmin: []
+      parameters: []
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaStatus"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /2fa/setup:
+    post:
+      operationId: setupMfa
+      summary: Create pending enrollment; does not enable MFA
+      security:
+        - tokenAdmin: []
+          csrf: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Setup"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enrollment"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /2fa/enable:
+    post:
+      operationId: enableMfa
+      summary: Confirm enrollment and replace all old sessions
+      security:
+        - tokenAdmin: []
+          csrf: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Enable"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryResult"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /2fa/disable:
+    post:
+      operationId: disableMfa
+      summary: Password and second factor required; revoke all sessions
+      security:
+        - tokenAdmin: []
+          csrf: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Reauth"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Success"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /2fa/recovery-codes/regenerate:
+    post:
+      operationId: regenerateRecoveryCodes
+      summary: Replace codes and rotate session; old sessions/codes are invalid
+      security:
+        - tokenAdmin: []
+          csrf: []
+      parameters:
+        - name: Origin
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Must match configured allowed origin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Reauth"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoveryResult"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+  /login-history:
+    get:
+      operationId: loginHistory
+      summary: Read only own completed and denied login events
+      security:
+        - tokenAdmin: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100000
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: outcome
+          in: query
+          schema:
+            type: string
+            enum:
+              - success
+              - denied
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/History"
+        "400":
+          $ref: "#/components/responses/Failure400"
+        "401":
+          $ref: "#/components/responses/Failure401"
+        "403":
+          $ref: "#/components/responses/Failure403"
+        "404":
+          $ref: "#/components/responses/Failure404"
+        "409":
+          $ref: "#/components/responses/Failure409"
+        "429":
+          $ref: "#/components/responses/Failure429"
+        "500":
+          $ref: "#/components/responses/Failure500"
+        "503":
+          $ref: "#/components/responses/Failure503"
+components:
+  securitySchemes:
+    tokenAdmin:
+      type: apiKey
+      in: cookie
+      name: tokenAdmin
+    csrf:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+  schemas:
+    Failure:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - error
+        message:
+          type: string
+        reasonCode:
+          type: string
+    Success:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - success
+        message:
+          type: string
+    Login:
+      type: object
+      additionalProperties: false
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password: &a2
+          type: string
+          minLength: 1
+          maxLength: 128
+          writeOnly: true
+        rememberPassword:
+          type: boolean
+          default: false
+    LoggedIn:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - csrfToken
+      properties:
+        code:
+          type: string
+          enum:
+            - success
+        message:
+          type: string
+        csrfToken:
+          type: string
+    MfaChallenge:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - data
+      properties:
+        code:
+          type: string
+          enum:
+            - success
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - mfaRequired
+            - challengeToken
+            - expiresIn
+          properties:
+            mfaRequired:
+              type: boolean
+              enum:
+                - true
+            challengeToken: &a1
+              type: string
+              pattern: ^[A-Za-z0-9_-]{43}$
+            expiresIn:
+              type: integer
+              enum:
+                - 300
+    LoginFactor:
+      type: object
+      additionalProperties: false
+      required:
+        - challengeToken
+      properties:
+        challengeToken: *a1
+        otp: &a3
+          type: string
+          pattern: ^\d{6}$
+        recoveryCode: &a4
+          type: string
+          pattern: ^[A-Za-z0-9_-]{22}$
+      oneOf:
+        - required:
+            - otp
+        - required:
+            - recoveryCode
+    Reauth:
+      type: object
+      additionalProperties: false
+      required:
+        - password
+      properties:
+        password: *a2
+        otp: *a3
+        recoveryCode: *a4
+      description: At most one factor; exactly one is required by the service when MFA
+        is enabled.
+      not:
+        required:
+          - otp
+          - recoveryCode
+    ProfileUpdate:
+      type: object
+      additionalProperties: false
+      required: []
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 120
+        phone:
+          type: string
+          maxLength: 30
+        description:
+          type: string
+          maxLength: 2000
+        avatar:
+          type: string
+          format: uri
+          pattern: ^https://
+          maxLength: 2048
+          nullable: true
+      minProperties: 1
+    Profile:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - email
+        - fullName
+        - platformRole
+        - isSuperAdmin
+        - mfaEnabled
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        platformRole:
+          type: string
+          enum:
+            - user
+            - platform_admin
+        isSuperAdmin:
+          type: boolean
+        mfaEnabled:
+          type: boolean
+        phone:
+          type: string
+        description:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+    ProfileResult:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - account
+      properties:
+        code:
+          type: string
+          enum:
+            - success
+        message:
+          type: string
+        account:
+          $ref: "#/components/schemas/Profile"
+    Sessions:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - data
+      properties:
+        code:
+          type: string
+          enum:
+            - success
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - items
+            - pagination
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - id
+                  - createdAt
+                  - expiresAt
+                  - lastSeenAt
+                  - ip
+                  - userAgent
+                  - current
+                properties:
+                  id:
+                    type: string
+                  createdAt: &a5
+                    type: string
+                    format: date-time
+                  expiresAt: *a5
+                  lastSeenAt: *a5
+                  ip:
+                    type: string
+                  userAgent:
+                    type: string
+                    maxLength: 512
+                  current:
+                    type: boolean
+            pagination: &a6
+              type: object
+              additionalProperties: false
+              required:
+                - page
+                - limit
+                - total
+                - totalPages
+              properties:
+                page:
+                  type: integer
+                limit:
+                  type: integer
+                total:
+                  type: integer
+                totalPages:
+                  type: integer
+    EmailRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - newEmail
+        - password
+      properties:
+        newEmail:
+          type: string
+          format: email
+          maxLength: 254
+        password: *a2
+        otp: *a3
+        recoveryCode: *a4
+      not:
+        required:
+          - otp
+          - recoveryCode
+    EmailConfirm:
+      type: object
+      additionalProperties: false
+      required:
+        - token
+        - password
+      properties:
+        token: *a1
+        password: *a2
+        otp: *a3
+        recoveryCode: *a4
+      not:
+        required:
+          - otp
+          - recoveryCode
+    MfaStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - data
+      properties:
+        code:
+          type: string
+          enum:
+            - success
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - enabled
+            - recoveryCodesRemaining
+          properties:
+            enabled:
+              type: boolean
+            recoveryCodesRemaining:
+              type: integer
+              minimum: 0
+              maximum: 10
+    Setup:
+      type: object
+      additionalProperties: false
+      required:
+        - password
+      properties:
+        password: *a2
+    Enrollment:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - data
+      properties:
+        code:
+          type: string
+          enum:
+            - success
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - setupToken
+            - secret
+            - otpauthUri
+            - expiresIn
+          properties:
+            setupToken: *a1
+            secret:
+              type: string
+              description: Shown once after password reauthentication. Never log.
+            otpauthUri:
+              type: string
+            expiresIn:
+              type: integer
+              enum:
+                - 600
+    Enable:
+      type: object
+      additionalProperties: false
+      required:
+        - setupToken
+        - otp
+      properties:
+        setupToken: *a1
+        otp: *a3
+    RecoveryResult:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - csrfToken
+        - data
+      properties:
+        code:
+          type: string
+          enum:
+            - success
+        csrfToken:
+          type: string
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - recoveryCodes
+          properties:
+            recoveryCodes:
+              type: array
+              minItems: 10
+              maxItems: 10
+              items:
+                type: string
+                pattern: ^[A-Za-z0-9_-]{22}$
+              description: Shown only at issuance; store offline.
+    History:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - data
+      properties:
+        code:
+          type: string
+          enum:
+            - success
+        data:
+          type: object
+          additionalProperties: false
+          required:
+            - items
+            - pagination
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - _id
+                  - createdAt
+                  - outcome
+                properties:
+                  _id:
+                    type: string
+                  createdAt: *a5
+                  outcome:
+                    type: string
+                    enum:
+                      - success
+                      - denied
+                  method:
+                    type: string
+                  reasonCode:
+                    type: string
+                  ip:
+                    type: string
+                  userAgent:
+                    type: string
+            pagination: *a6
+  responses:
+    Failure400:
+      description: Invalid body, query, session ID, setup/email token or token expired
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Failure"
+    Failure401:
+      description: Invalid session, reauthentication or MFA challenge; inspect reasonCode
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Failure"
+    Failure403:
+      description: Origin/CSRF denied or environment-managed Super Admin profile/email
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Failure"
+    Failure404:
+      description: Session does not belong to caller or does not exist
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Failure"
+    Failure409:
+      description: Email unavailable or MFA state conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Failure"
+    Failure429:
+      description: Rate limit; Retry-After is returned
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Failure"
+      headers:
+        Retry-After:
+          description: Retry delay in seconds
+          schema:
+            type: integer
+            minimum: 1
+    Failure500:
+      description: Sanitized server/database failure; not an instruction to log out
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Failure"
+    Failure503:
+      description: Dependency unavailable or MFA key configuration invalid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Failure"
