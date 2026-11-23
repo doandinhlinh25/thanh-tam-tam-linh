@@ -1,0 +1,97 @@
+# PROMPT P01 / v1.0 — Auth Service — gia cố nghiệp vụ xác thực đã có
+
+> **Cách dùng:** copy TOÀN BỘ nội dung file này vào AI được giao. Mặc định AI chỉ chạy `SCOUT`. Sau khi duyệt kết quả, gửi lại file và đổi `GIAI_DOAN` lần lượt thành `PLAN`, `COOK`, `TEST`, `REVIEW`. **COOK cần kế hoạch có `Status: APPROVED`.** Không bắt buộc một AI làm mọi stage; nên nhờ AI độc lập REVIEW.
+
+**Mã nhiệm vụ:** `P01-auth`  
+**Độ ưu tiên:** `P0`  
+**Người sở hữu:** Thành viên Backend Auth  
+**Vùng sửa code ĐỘC QUYỀN:** `services/auth-service/**`  
+**Nhịp tích hợp:** Song song với P02/P03/P04/P05/P06 sau P07  
+**Nhánh gợi ý:** `ai/p01-auth-r0`
+
+## 0. BỐI CẢNH CỐ ĐỊNH (ĐỌC TRƯỚC KHI LÀM)
+
+Bạn là AI kỹ sư được phân công **MỘT phần việc** trên repo `https://github.com/doandinhlinh25/thanh-tam-tam-linh`. Tài liệu đích là **Thanh Tâm V4 — BRD + SAD hợp nhất** do nhóm cung cấp, thiết kế SaaS đa tenant, microservices, **mỗi microservice có một MongoDB database riêng**. Baseline được khảo sát: `main` tại `6663a36b2c1ddb2cdfaee7ce7bfff55e33bc1d2b`. **Repo tại thời điểm bạn làm có thể đã đổi**: kiểm tra `git status`, commit hiện tại, remote và mã nguồn THẬT, không mặc định main vẫn ở baseline.
+
+**BẮT BUỘC** đọc `AGENTS.md`, `docs/workflow/README.md`, `docs/development/coding-conventions.md` (nếu liên quan), tài liệu V4 được chủ dự án cung cấp, cùng các mã nguồn và kiểm thử trong phạm vi nhiệm vụ. Nếu chưa được cấp file V4, dùng các nguyên tắc nêu ở prompt này, báo thiếu tài liệu và KHÔNG tự suy diễn nghiệp vụ mới. `AGENTS.md` có vài mô tả cũ rằng frontend chưa có; phải đối chiếu thư mục thực tế `apps/web/`.
+
+### Chỉ sửa cái ĐÃ LÀM — quy tắc bất biến của đợt R0
+
+1. Được **sửa bug hiện có, khắc phục vấn đề bảo mật trên endpoint hiện có khi có phê duyệt, cải thiện tính đúng đắn/khả kiểm thử, refactor nhỏ và thêm regression test cho hành vi đã triển khai**. Không nâng cấp kiến trúc bằng cách tự tạo khả năng chưa tồn tại.
+2. **CẤM** triển khai nghiệp vụ mới: Document ingestion worker, PDF extraction, embeddings, vector search, `READY`/publish, retrieval API; Chat history/feedback persistence, API mới; frontend kết nối backend thật; Billing subscription/payment; Notification delivery engine; MongoDB migration của Document hoặc Chat; tạo DB runtime mới; đưa Auth/Document/Chat lên Kong public; bật allow policy OPA; bất kỳ endpoint nào còn ở dạng chỉ-thiết-kế.
+3. Giữ nguyên hành vi nghiệp vụ/API hiện có, trừ sửa lỗ hổng/bug đã xác nhận và có kế hoạch phê duyệt. **Không tự đổi PostgreSQL trong Document sang MongoDB**, không biến SQLAlchemy Chat thành Mongo repository trong đợt này, không xóa code dở dang chỉ vì chưa dùng. Không cập nhật OpenAPI dự thảo thành "đã hoàn thành".
+4. Không chạm dữ liệu/secret thật; không reset DB, xóa volume, `docker compose down -v`, triển khai, cài dịch vụ trả phí, dùng root MongoDB runtime hoặc biến môi trường production. Tránh xuất nội dung `.env`, cookie, JWT, token ra log/report.
+5. **Không sửa file ngoài vùng sở hữu được liệt kê**. Tài liệu workflow (`docs/reports/`, `docs/plans/`, `docs/handoffs/`) được thêm **chỉ với mã nhiệm vụ riêng**, không sửa báo cáo của người khác. Nếu thay đổi cần sửa file chung hoặc service khác, DỪNG và báo điều phối viên. Không force push, không tự commit, push, merge, rebase hay mở PR nếu chủ dự án chưa cho phép.
+6. Bảo toàn các thay đổi đang có trong working tree và file chưa track. Làm trên branch/worktree riêng; không ghi đè file đang có của người khác. Phân biệt `AS-IS` (đã chạy), `TO-BE` (thiết kế), `GAP` (chưa triển khai).
+7. Điều kiện chất lượng: regression tests phản ánh hành vi thật; kiểm tenant/user scope, lỗi kỹ thuật khác thiếu evidence, idempotency, lỗi dependency theo đúng phạm vi; không tuyên bố “pass” nếu chưa chạy.
+
+### Quy trình bắt buộc — 1 lần gửi prompt = 1 giai đoạn
+
+`GIAI_DOAN = SCOUT` **(mặc định; người giao việc sửa dòng này lần lượt thành `PLAN`, `COOK`, `TEST`, `REVIEW`)**. Không tự chuyển giai đoạn.
+
+- **SCOUT:** chỉ đọc và điều tra: cấu trúc thật, endpoint hiện có, test baseline, 3–6 lỗi/rủi ro đã thấy, các file được phép sửa; xuất báo cáo và dừng. Không sửa code.
+- **PLAN:** dựa trên báo cáo SCOUT, viết kế hoạch nhỏ, mỗi bước gắn file owner + tiêu chí nghiệm thu + kiểm thử + rollback, đánh dấu `DRAFT`; dừng chờ chủ dự án ghi **APPROVED**. Không sửa code.
+- **COOK:** chỉ khi kế hoạch của mã nhiệm vụ này đã được duyệt; triển khai **chính xác các bước đã duyệt**, trong vùng file được phép; không mở rộng phạm vi. Có thể chạy kiểm tra nhanh, nhưng không tự chuyển sang TEST.
+- **TEST:** kiểm tra chức năng và hồi quy theo kế hoạch, chạy lệnh có thể chạy; nếu môi trường không hỗ trợ thì ghi `NOT RUN` kèm lý do; không tuyên bố kết quả giả. Không sửa code sản phẩm trong stage này (chỉ bổ sung/sửa test nếu được duyệt).
+- **REVIEW:** chỉ đọc diff và đối chiếu scope, test, bảo mật, hợp đồng, rủi ro; trả `APPROVE` hoặc `REQUEST CHANGES`; không tự merge.
+
+`BRAINSTORM` được chèn giữa SCOUT và PLAN **chỉ khi có nhiều lựa chọn thiết kế đáng cân nhắc**, và cũng là một lượt riêng. Theo `docs/workflow/README.md`, dùng `task-id = YYYY-MM-DD-<slug>` riêng cho nhiệm vụ và ghi reports/handoff/plan theo mẫu của repo. Nếu đang dùng Codex, đọc `.agents/skills/<stage>/SKILL.md` tương ứng.
+
+### Kết quả BẮT BUỘC trả cho chủ dự án
+
+- Mã nhiệm vụ, giai đoạn, branch/worktree, commit nền; file thay đổi và file KHÔNG thay đổi.
+- **Đã tồn tại / sửa cái đã tồn tại / phát hiện nhưng để lại / nguy cơ tích hợp / phụ thuộc nhóm khác**.
+- Bằng chứng test (lệnh thực chạy, số test, PASS/FAIL/NOT RUN), diff tóm tắt, rollback, đề nghị giai đoạn tiếp theo.
+- **Dừng thực hiện** nếu không có quyền sửa, thiếu approved plan, gặp xung đột file, hoặc nhiệm vụ đòi xây chức năng mới.
+
+
+## 1. NHIỆM VỤ CỦA BẠN
+
+**Auth Service — gia cố nghiệp vụ xác thực đã có**. Đây là đợt **R0 — hardening/refactor cái đã có**, không xây TO-BE mới.
+
+### Điểm bắt đầu để đọc (kiểm tra lại path thực tế)
+
+services/auth-service/app.ts; routes/admin/account.route.ts; routes/internal.route.ts; middlewares/admin/auth.middleware.ts; middlewares/security.middleware.ts; services/auth.service.ts; models/account-admin.model.ts; models/action-token.model.ts
+
+### Những việc ĐƯỢC phép làm (nếu code thực sự có & có lỗi/giá trị đo được)
+
+- Kiểm lại luồng login, logout, me, csrf, đổi/quên/reset mật khẩu **đã có**; sửa bug tái hiện được, kiểm không rò cookie/JWT và reset token dùng một lần.
+- Kiểm auth JWT HS256 `tokenAdmin`, `authVersion`, user vô hiệu hóa; Origin/CSRF/rate-limit ở các endpoint hiện có; giữ định dạng response AS-IS.
+- Kiểm `/internal/auth/introspect` chỉ được gọi bằng đúng `AUTH_TENANT_TOKEN`, không để client giả mạo identity; bổ sung regression tests nội bộ trong vùng owner nếu cần.
+- Bổ sung mô tả đúng về `MONGODB_URI` đang có, index/TTL và cấu hình an toàn trong README service nếu là hiệu chỉnh tài liệu hiện trạng.
+
+### Tuyệt đối KHÔNG làm
+
+- KHÔNG tạo identity provider thứ hai; KHÔNG thêm OAuth/SSO/MFA/refresh-token mới.
+- KHÔNG đổi `tokenAdmin` sang tên cookie theo tài liệu TO-BE; KHÔNG thay cấu trúc login API trong đợt R0.
+- KHÔNG sửa `services/tenant-service/**`, shared `test/platform.integration.ts`, gateway hoặc hợp đồng toàn hệ thống.
+- KHÔNG tự đổi database name/credential đang được môi trường sử dụng hoặc xóa account.
+
+### Phạm vi file và xung đột
+
+Vùng sửa code duy nhất: `services/auth-service/**`. Không tự mở rộng whitelist. Các file chung `package.json` gốc, `package-lock.json` gốc, `test/**` gốc (trừ khi được ghi rõ trong whitelist), `contracts/**` (trừ khi được ghi rõ), `docs/architecture/**`, `AGENTS.md`, `.agents/**` do điều phối viên quản lý. Chỉ thêm artifact workflow có tên riêng `p01-auth` vào thư mục docs của stage theo quy định repo.
+
+### Acceptance criteria / Definition of Done
+
+1. Đường đăng nhập hợp lệ vẫn hoạt động; tài khoản vô hiệu hóa/JWT hết hạn bị từ chối như contract hiện tại.
+2. CSRF/Origin phải từ chối request không hợp lệ, bảo toàn hành vi GET/HEAD/OPTIONS đã thiết kế.
+3. Các test regression mới (nếu có) tái hiện bug trước khi sửa; không lộ token/log.
+4. Node build/typecheck và test liên quan được báo đúng kết quả.
+
+### Lệnh kiểm tra gợi ý (không giả nhận test pass)
+
+```bash
+npm run build --workspace @saas/auth-service; npm run typecheck --workspace @saas/auth-service; npm run test:platform (chỉ đọc file test chung)
+```
+
+## 2. CÂU LỆNH CHẠY GIAI ĐOẠN
+
+Trong tin nhắn giao việc, chủ dự án cung cấp dòng: `GIAI_DOAN = SCOUT | PLAN | COOK | TEST | REVIEW`. Nếu không có dòng này, **SCOUT**. Chỉ chạy đúng stage đó.
+
+- **SCOUT:** xác minh repo/branch/worktree, lập bảng file và chức năng AS-IS; báo 3–6 điểm sửa được mà **không tạo nghiệp vụ mới**; đề xuất thứ tự, rủi ro, test. Dừng.
+- **PLAN:** chỉ lập kế hoạch cho các lỗi đã được duyệt trong SCOUT, ghi mã AC, file, test, rollback và phụ thuộc; dừng chờ `Status: APPROVED`.
+- **COOK:** kiểm approved plan, check `git diff`/scope, sửa **các mục approved** và viết regression test có phạm vi; ghi rõ nếu gặp yêu cầu khác service thì dừng. Không commit/push.
+- **TEST:** đo độc lập và báo `PASS/FAIL/NOT RUN`; có thể ghi bug report cho owner, không sửa sản phẩm trực tiếp.
+- **REVIEW:** đọc diff; tìm scope creep, migration trái phép, hành vi stub bị "giả hoàn tất", lộ secret, regression, broken tests; trả quyết định.
+
+**Yêu cầu cuối:** trả lại bảng `File | Hành vi cũ | Thay đổi | Test | Tình trạng`, danh sách **chưa đụng tới** và đường dẫn artifact. Không được báo "đã chuyển hệ thống sang V4" chỉ vì hoàn tất prompt này.

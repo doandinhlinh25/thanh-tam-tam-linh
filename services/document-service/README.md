@@ -37,6 +37,8 @@ To verify the integration, upload a PDF with an authorized lecturer or tenant ow
 
 The PDF is stored privately under `tenantId/courseId/documentId/1.pdf`. Metadata is stored in PostgreSQL. An event matching `contracts/events/document-ingest-requested.v1.schema.json` is added to the Redis Stream `document-ingestion` in its `payload` field. Consumers must check the document and tenant again and handle `jobId` idempotently. If publication fails, the upload stays `UPLOADED`; retrying with the same key and bytes publishes it again. Configure Redis persistence for durable processing.
 
+Upload validation checks the declared `application/pdf` MIME type and the leading `%PDF-` magic bytes only. It does not verify the full PDF structure or whether the file contains a text layer. HTTP 202 with `QUEUED` means upload and queueing were accepted; it does not mean the document is `READY` or searchable.
+
 This implementation covers upload only. The contract's get, delete, retrieval, and PDF text-layer processing endpoints need separate implementation.
 
 ## Isolated integration environment

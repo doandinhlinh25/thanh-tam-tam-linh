@@ -1,3 +1,4 @@
+import { authReason } from "../config/auth-reason.config";
 import jwt from "jsonwebtoken";
 import { getJwtSecret } from "../config/jwt.config";
 import { Request, Response } from "express";
@@ -14,8 +15,17 @@ export const introspect = async (req: Request, res: Response) => {
     const account = await AuthService.getIdentity(decoded);
     res.json({ code: "success", account });
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      res.status(401).json({ code: "error", message: "Token không hợp lệ hoặc đã hết hạn!" });
+    if (
+      error instanceof jwt.JsonWebTokenError ||
+      (error instanceof ServiceError && error.status === 401)
+    ) {
+      res
+        .status(401)
+        .json({
+          code: "error",
+          message: "Token không hợp lệ hoặc đã hết hạn!",
+          reasonCode: authReason.SESSION_INVALID
+        });
       return;
     }
     errorResponse(res, error);

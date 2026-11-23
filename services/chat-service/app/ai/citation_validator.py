@@ -3,7 +3,11 @@ import re
 import uuid
 from typing import List, Any
 from app.domain.value_objects.citation import ChatCitation
+from app.domain.value_objects.evidence import parse_positive_integer
 from app.domain.exceptions import CitationVerificationFailedException
+
+
+CITATION_INVALID_PAGE_RANGE_MESSAGE = "Citation page range is invalid"
 
 
 class CitationValidator:
@@ -146,15 +150,9 @@ class CitationValidator:
                 document_id = str(ev.get("documentId") or ev.get("document_id") or "")
                 document_name = str(ev.get("documentName") or ev.get("document_name") or ev.get("source_title") or "")
                 raw_pfrom = ev.get("pageFrom") or ev.get("page_from") or ev.get("page_number") or 1
-                try:
-                    page_from = max(1, int(float(raw_pfrom)))
-                except (ValueError, TypeError):
-                    page_from = 1
+                page_from = parse_positive_integer(raw_pfrom, 1)
                 raw_pto = ev.get("pageTo") or ev.get("page_to") or page_from
-                try:
-                    page_to = max(page_from, int(float(raw_pto)))
-                except (ValueError, TypeError):
-                    page_to = page_from
+                page_to = parse_positive_integer(raw_pto, page_from)
                 text = str(ev.get("text") or ev.get("content") or "")
             else:
                 evidence_id = str(getattr(ev, "evidence_id", getattr(ev, "evidenceId", str(idx))))
@@ -163,16 +161,13 @@ class CitationValidator:
                 document_id = str(getattr(ev, "document_id", getattr(ev, "documentId", "")))
                 document_name = str(getattr(ev, "document_name", getattr(ev, "documentName", getattr(ev, "source_title", ""))))
                 raw_pfrom = getattr(ev, "page_from", getattr(ev, "pageFrom", getattr(ev, "page_number", 1)))
-                try:
-                    page_from = max(1, int(float(raw_pfrom)))
-                except (ValueError, TypeError):
-                    page_from = 1
+                page_from = parse_positive_integer(raw_pfrom, 1)
                 raw_pto = getattr(ev, "page_to", getattr(ev, "pageTo", page_from))
-                try:
-                    page_to = max(page_from, int(float(raw_pto)))
-                except (ValueError, TypeError):
-                    page_to = page_from
+                page_to = parse_positive_integer(raw_pto, page_from)
                 text = str(getattr(ev, "text", getattr(ev, "content", "")))
+
+            if page_to < page_from:
+                raise CitationVerificationFailedException(CITATION_INVALID_PAGE_RANGE_MESSAGE)
 
             # Conform strictly to minLength: 1 for snippet in contracts/openapi/chat.yaml
             if text and text.strip():

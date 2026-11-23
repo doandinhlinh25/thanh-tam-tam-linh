@@ -58,10 +58,12 @@ describe("role-based demo routes", () => {
     await user.click(screen.getByRole("button", { name: /Sinh viên/ }));
     await user.click(within(await screen.findByRole("navigation", { name: "Điều hướng chính" })).getByRole("button", { name: "Tài liệu cá nhân" }));
     const input = screen.getByLabelText("Chọn tệp PDF hoặc DOCX");
-    Object.defineProperty(input, "files", { configurable: true, value: [new File(["text"], "notes.txt", { type: "text/plain" })] });
-    fireEvent.change(input);
+    await user.upload(input, new File(["text"], "notes.txt", { type: "application/pdf" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Chọn tệp có định dạng PDF hoặc DOCX.");
     expect(screen.getByText("Thư viện cá nhân đang trống")).toBeInTheDocument();
+    await user.upload(input, new File(["valid pdf"], "retry.pdf", { type: "application/pdf" }));
+    expect(screen.getByText("retry.pdf")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("shows mock transfer progress and can cancel without adding the file", async () => {
@@ -82,8 +84,69 @@ describe("role-based demo routes", () => {
     await user.click(within(await screen.findByRole("navigation", { name: "Điều hướng chính" })).getByRole("button", { name: "Tài liệu cá nhân" }));
     await user.upload(screen.getByLabelText("Chọn tệp PDF hoặc DOCX"), new File(["pdf content"], "lecture.pdf", { type: "application/pdf" }));
     await user.click(screen.getByRole("button", { name: "Thêm vào tài liệu cá nhân" }));
+    const input = screen.getByLabelText("Chọn tệp PDF hoặc DOCX");
+    expect(input).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Đổi tệp" })).toBeDisabled();
+    const processingButton = screen.getByRole("button", { name: "Đang xử lý demo…" });
+    expect(processingButton).toBeDisabled();
+    await user.click(processingButton);
+    expect(screen.getByRole("progressbar", { name: "Tiến trình mô phỏng" })).toBeInTheDocument();
     expect(await screen.findByText("lecture.pdf", {}, { timeout: 2500 })).toBeInTheDocument();
     expect(screen.getByText(/Mô phỏng demo · Chỉ lưu tên, định dạng và dung lượng/)).toBeInTheDocument();
+    expect(screen.getAllByText("lecture.pdf")).toHaveLength(1);
+  });
+
+  it("keeps the original file when a change event reaches the locked input during progress", async () => {
+    const { user } = renderApp(<App />);
+    await user.click(screen.getByRole("button", { name: /Sinh viên/ }));
+    await user.click(within(await screen.findByRole("navigation", { name: "Điều hướng chính" })).getByRole("button", { name: "Tài liệu cá nhân" }));
+    const input = screen.getByLabelText("Chọn tệp PDF hoặc DOCX");
+    await user.upload(input, new File(["original"], "original.pdf", { type: "application/pdf" }));
+    await user.click(screen.getByRole("button", { name: "Thêm vào tài liệu cá nhân" }));
+
+    const replacementInput = document.createElement("input");
+    replacementInput.type = "file";
+    document.body.append(replacementInput);
+    await user.upload(replacementInput, new File(["replacement"], "replacement.pdf", { type: "application/pdf" }));
+    expect(replacementInput.files?.item(0)?.name).toBe("replacement.pdf");
+    await user.upload(input, new File(["replacement"], "replacement.pdf", { type: "application/pdf" }));
+    // Programmatic dispatch bypasses the browser's disabled-control behavior to exercise the handler guard.
+    fireEvent.change(input, { target: { files: replacementInput.files } });
+    replacementInput.remove();
+
+    expect(screen.getByText("original.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("replacement.pdf")).not.toBeInTheDocument();
+    const addedDocument = await screen.findByRole("listitem", {}, { timeout: 2500 });
+    expect(within(addedDocument).getByText("original.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("replacement.pdf")).not.toBeInTheDocument();
+    expect(screen.getAllByText("original.pdf")).toHaveLength(1);
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+  });
+
+  it("ignores a dropped replacement while personal document progress is active", async () => {
+    const { user } = renderApp(<App />);
+    await user.click(screen.getByRole("button", { name: /Sinh viên/ }));
+    await user.click(within(await screen.findByRole("navigation", { name: "Điều hướng chính" })).getByRole("button", { name: "Tài liệu cá nhân" }));
+    await user.upload(screen.getByLabelText("Chọn tệp PDF hoặc DOCX"), new File(["first"], "first.pdf", { type: "application/pdf" }));
+    await user.click(screen.getByRole("button", { name: "Thêm vào tài liệu cá nhân" }));
+
+    const dropTarget = screen.getByText("first.pdf").closest(".drop-zone");
+    expect(dropTarget).not.toBeNull();
+    const input = screen.getByLabelText("Chọn tệp PDF hoặc DOCX");
+    expect(input).toBeDisabled();
+    const replacementInput = document.createElement("input");
+    replacementInput.type = "file";
+    document.body.append(replacementInput);
+    await user.upload(replacementInput, new File(["second"], "second.pdf", { type: "application/pdf" }));
+    fireEvent.drop(dropTarget!, { dataTransfer: { files: replacementInput.files } as unknown as DataTransfer });
+    replacementInput.remove();
+    expect(screen.getByText("first.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("second.pdf")).not.toBeInTheDocument();
+
+    const addedDocument = await screen.findByRole("listitem", {}, { timeout: 2500 });
+    expect(within(addedDocument).getByText("first.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("second.pdf")).not.toBeInTheDocument();
+    expect(screen.getByText(/Chỉ là metadata demo; chưa được tải lên, đọc hoặc đưa vào AI/)).toBeInTheDocument();
   });
 
   it("keeps the teacher course list within assigned demo courses", async () => {

@@ -1,3 +1,5 @@
+import { AuthorizationService } from "../services/authorization.service";
+import { authReason } from "../config/auth-reason.config";
 import { Response } from "express";
 import Course from "../models/course.model";
 import { AccountRequest } from "../interfaces/request.interface";
@@ -38,7 +40,11 @@ export const checkAuthorization = async (req: AccountRequest, res: Response) => 
   try {
     const { tenantId, courseId, action } = req.body;
     if (!(await CourseService.canAccessCourse(tenantId, courseId, req.adminId!, action))) {
-      throw new ServiceError("Không có quyền truy cập môn học!", 403);
+      throw new ServiceError(
+        "Không có quyền truy cập môn học!",
+        403,
+        authReason.COURSE_ACCESS_DENIED
+      );
     }
     res.json({
       code: "success",
@@ -55,6 +61,20 @@ export const consumeChatQuota = async (req: AccountRequest, res: Response) => {
     const { tenantId, courseId, requestId } = req.body;
     const result = await QuotaService.consumeChat(tenantId, courseId, req.adminId!, requestId);
     res.json({ code: "success", ...result });
+  } catch (error) {
+    errorResponse(res, error);
+  }
+};
+
+/** Trusted identity and active selected membership for Chat requests without a course. */
+export const authorizationContext = async (req: AccountRequest, res: Response) => {
+  try {
+    const context = await AuthorizationService.getContext(req.body.tenantId, req.adminId!);
+    res.json({
+      code: "success",
+      successful: true,
+      data: { allowed: true, ...context, csrfVerified: res.locals.csrfVerified === true }
+    });
   } catch (error) {
     errorResponse(res, error);
   }

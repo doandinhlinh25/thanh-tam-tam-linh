@@ -1,8 +1,37 @@
 """Contract tests for Retrieval Service integration."""
+import math
+import json
 import pytest
 from app.ai.retrieval.schemas import SearchRequest
 from app.ai.retrieval.mapper import RetrievalMapper
+from app.ai.context_builder import ContextBuilder
 from app.domain.value_objects.evidence import Evidence
+from app.integrations.retrieval_service.exceptions import RetrievalInvalidResponseException
+
+
+VALID_DOCUMENT_CANDIDATE = {
+    "evidenceId": "ev-f1",
+    "chunkId": "chunk-f1",
+    "documentId": "doc-f1",
+    "documentVersion": 2,
+    "documentName": "Course.pdf",
+    "pageFrom": 3,
+    "pageTo": 4,
+    "text": "Verified course content",
+    "retrievalScore": 0.9,
+}
+VALID_SNAKE_CANDIDATE = {
+    "evidence_id": "ev-snake-f1",
+    "chunk_id": "chunk-snake-f1",
+    "document_id": "doc-snake-f1",
+    "document_version": 2,
+    "source_type": "personal",
+    "document_name": "Notes.pdf",
+    "page_from": 3,
+    "page_to": 4,
+    "text": "Verified personal content",
+    "retrieval_score": 0.9,
+}
 
 
 def test_retrieval_contract_placeholder():
@@ -146,13 +175,162 @@ def test_candidate_mapping_retrieval_evidence_snake_case():
     assert abs(ev.retrieval_score - 0.775) < 1e-5
 
 
-def test_candidate_mapping_handles_null_and_empty_payloads():
-    """Verify RetrievalMapper handles null/None candidate keys without throwing TypeError."""
-    assert RetrievalMapper.to_domain({"data": {"candidates": None}}) == []
-    assert RetrievalMapper.to_domain({"candidates": None}) == []
-    assert RetrievalMapper.to_domain({"data": {"candidates": [None, None]}}) == []
-    assert RetrievalMapper.to_domain({}) == []
-    assert RetrievalMapper.to_domain(None) == []
+def test_candidate_mapping_accepts_only_valid_empty_evidence():
+    """A valid empty candidate list is the only empty-evidence response."""
+    assert RetrievalMapper.to_domain({"successful": True, "data": {"candidates": []}}) == []
+
+
+@pytest.mark.parametrize("missing_field", tuple(VALID_DOCUMENT_CANDIDATE))
+def test_candidate_mapping_rejects_missing_required_document_field(missing_field):
+    """Every Document v1 candidate field is required before Evidence creation."""
+    candidate = dict(VALID_DOCUMENT_CANDIDATE)
+    candidate.pop(missing_field)
+    payload = {"successful": True, "data": {"candidates": [candidate]}}
+
+    with pytest.raises(RetrievalInvalidResponseException) as exc_info:
+        RetrievalMapper.to_domain(payload)
+
+    assert exc_info.value.status_code == 502
+    assert exc_info.value.details == {}
+
+
+@pytest.mark.parametrize("required_field", tuple(VALID_DOCUMENT_CANDIDATE))
+def test_candidate_mapping_rejects_null_required_document_field(required_field):
+    """Null values cannot trigger Evidence's permissive defaults."""
+    candidate = {**VALID_DOCUMENT_CANDIDATE, required_field: None}
+    payload = {"successful": True, "data": {"candidates": [candidate]}}
+
+    with pytest.raises(RetrievalInvalidResponseException):
+        RetrievalMapper.to_domain(payload)
+
+
+@pytest.mark.parametrize(
+    "field,invalid_value",
+    [
+        ("evidenceId", 7),
+        ("chunkId", 7),
+        ("documentId", 7),
+        ("documentName", 7),
+        ("text", 7),
+        ("documentVersion", 1.5),
+        ("documentVersion", 0),
+        ("documentVersion", True),
+        ("pageFrom", "3"),
+        ("pageFrom", 0),
+        ("pageTo", "4"),
+        ("pageTo", 0),
+        ("retrievalScore", "0.9"),
+        ("retrievalScore", True),
+        ("retrievalScore", math.nan),
+        ("retrievalScore", math.inf),
+        ("retrievalScore", -math.inf),
+    ],
+)
+def test_candidate_mapping_rejects_invalid_required_document_type(field, invalid_value):
+    """Required candidate types and numeric bounds follow the Document schema."""
+    candidate = {**VALID_DOCUMENT_CANDIDATE, field: invalid_value}
+    payload = {"successful": True, "data": {"candidates": [candidate]}}
+
+    with pytest.raises(RetrievalInvalidResponseException):
+        RetrievalMapper.to_domain(payload)
+
+
+def test_candidate_mapping_keeps_complete_document_values():
+    """Complete valid evidence retains its document version, pages and score."""
+    payload = {"successful": True, "data": {"candidates": [VALID_DOCUMENT_CANDIDATE]}}
+
+    evidence = RetrievalMapper.to_domain(payload)
+
+    assert len(evidence) == 1
+    assert evidence[0].chunk_id == VALID_DOCUMENT_CANDIDATE["chunkId"]
+    assert evidence[0].document_version == VALID_DOCUMENT_CANDIDATE["documentVersion"]
+    assert evidence[0].page_from == VALID_DOCUMENT_CANDIDATE["pageFrom"]
+    assert evidence[0].page_to == VALID_DOCUMENT_CANDIDATE["pageTo"]
+    assert evidence[0].retrieval_score == VALID_DOCUMENT_CANDIDATE["retrievalScore"]
+
+
+@pytest.mark.parametrize("page_from,page_to", [(2, 3), (3, 3)])
+def test_candidate_mapping_preserves_ordered_pages(page_from, page_to):
+    """Valid retrieval pages remain unchanged in Evidence and JSON."""
+    candidate = {**VALID_DOCUMENT_CANDIDATE, "pageFrom": page_from, "pageTo": page_to}
+    evidence = RetrievalMapper.to_domain({"successful": True, "data": {"candidates": [candidate]}})[0]
+
+    assert (evidence.page_from, evidence.page_to) == (page_from, page_to)
+    serialized = json.loads(json.dumps(evidence.to_dict()))
+    assert (serialized["pageFrom"], serialized["pageTo"]) == (page_from, page_to)
+
+
+@pytest.mark.parametrize("candidate,page_from_field,page_to_field", [
+    (VALID_DOCUMENT_CANDIDATE, "pageFrom", "pageTo"),
+    (VALID_SNAKE_CANDIDATE, "page_from", "page_to"),
+])
+def test_candidate_mapping_rejects_inverted_page_range(candidate, page_from_field, page_to_field):
+    """Chat's citation contract requires an ordered range; no page is silently changed."""
+    candidate = {**candidate, page_from_field: 3, page_to_field: 2}
+    with pytest.raises(RetrievalInvalidResponseException) as exc_info:
+        RetrievalMapper.to_domain({"successful": True, "data": {"candidates": [candidate]}})
+
+    assert exc_info.value.status_code == 502
+    assert exc_info.value.details == {}
+
+
+@pytest.mark.parametrize("document_version", [1, 9007199254740993, 10**400])
+def test_candidate_mapping_preserves_integer_version(document_version):
+    """Document versions retain exact integer values without float conversion."""
+    candidate = {**VALID_DOCUMENT_CANDIDATE, "documentVersion": document_version}
+    evidence = RetrievalMapper.to_domain({"successful": True, "data": {"candidates": [candidate]}})[0]
+
+    assert evidence.document_version == document_version
+    assert json.loads(json.dumps(evidence.to_dict()))["documentVersion"] == document_version
+
+
+def test_candidate_mapping_preserves_large_page_numbers():
+    """Large valid page integers remain exact from candidate through serialization."""
+    large_page = 9007199254740993
+    candidate = {**VALID_DOCUMENT_CANDIDATE, "pageFrom": large_page, "pageTo": large_page + 1}
+    evidence = RetrievalMapper.to_domain({"successful": True, "data": {"candidates": [candidate]}})[0]
+
+    assert evidence.page_from == large_page
+    assert evidence.page_to == large_page + 1
+    assert json.loads(json.dumps(evidence.to_dict()))["pageTo"] == large_page + 1
+    assert f"Pages {large_page}-{large_page + 1}" in ContextBuilder.build_context([evidence])
+
+
+@pytest.mark.parametrize("missing_field", tuple(VALID_SNAKE_CANDIDATE))
+def test_candidate_mapping_rejects_missing_required_snake_field(missing_field):
+    """The existing snake-case retrieval candidate also needs all contract fields."""
+    candidate = dict(VALID_SNAKE_CANDIDATE)
+    candidate.pop(missing_field)
+
+    with pytest.raises(RetrievalInvalidResponseException):
+        RetrievalMapper.to_domain({"successful": True, "data": {"candidates": [candidate]}})
+
+
+@pytest.mark.parametrize("invalid_source", [None, "other", 7])
+def test_candidate_mapping_rejects_invalid_snake_source_type(invalid_source):
+    """Source type must use the enum from the existing retrieval draft."""
+    candidate = {**VALID_SNAKE_CANDIDATE, "source_type": invalid_source}
+
+    with pytest.raises(RetrievalInvalidResponseException):
+        RetrievalMapper.to_domain({"successful": True, "data": {"candidates": [candidate]}})
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"successful": True, "data": {"candidates": None}},
+        {"successful": True, "data": {"candidates": [None]}},
+        {"successful": True, "data": {"candidates": [{}]}},
+        {"successful": True, "data": {}},
+        {"candidates": []},
+        {},
+        None,
+    ],
+)
+def test_candidate_mapping_rejects_malformed_payload(payload):
+    """Malformed retrieval success data is technical failure, never no evidence."""
+    with pytest.raises(RetrievalInvalidResponseException):
+        RetrievalMapper.to_domain(payload)
 
 
 def test_evidence_creation_safely_handles_malformed_types():
@@ -213,5 +391,7 @@ async def test_retrieval_http_client_handles_successful_false_envelope_on_200():
         client = RetrievalServiceHttpClient(client=async_client)
         with pytest.raises(RetrievalServiceUnavailableException) as exc_info:
             await client.post_search({"query": "test"})
-        assert "INDEX_NOT_READY" in str(exc_info.value) or "Index is rebuilding" in str(exc_info.value)
+        assert exc_info.value.status_code == 503
+        assert "Index is rebuilding" not in str(exc_info.value)
+        assert exc_info.value.details == {}
 

@@ -1,5 +1,25 @@
 """Evidence chunk value object retrieved from RAG knowledge store."""
 from typing import Optional, Any
+from decimal import Decimal, InvalidOperation
+
+
+def parse_positive_integer(value: Any, fallback: int) -> int:
+    """Keep a positive integer exact and use the legacy fallback for malformed values.
+
+    :param value: Candidate number supplied to a Chat value object.
+    :param fallback: Existing default used only when the input is invalid.
+    :returns: An exact positive Python integer.
+    """
+    if type(value) is int:
+        return value if value >= 1 else fallback
+    try:
+        decimal_value = Decimal(str(value))
+        if decimal_value.is_finite() and decimal_value == decimal_value.to_integral_value():
+            parsed_value = int(decimal_value)
+            return parsed_value if parsed_value >= 1 else fallback
+    except (InvalidOperation, ValueError, TypeError, OverflowError):
+        pass
+    return fallback
 
 
 class Evidence:
@@ -60,10 +80,7 @@ class Evidence:
         self._document_name = str(raw_dname)
 
         raw_ver = documentVersion if documentVersion is not None else document_version
-        try:
-            self._document_version = max(1, int(float(raw_ver))) if raw_ver is not None else 1
-        except (ValueError, TypeError):
-            self._document_version = 1
+        self._document_version = parse_positive_integer(raw_ver, 1)
 
         raw_pfrom = (
             pageFrom
@@ -74,10 +91,7 @@ class Evidence:
             if page_number is not None
             else 1
         )
-        try:
-            self._page_from = max(1, int(float(raw_pfrom)))
-        except (ValueError, TypeError):
-            self._page_from = 1
+        self._page_from = parse_positive_integer(raw_pfrom, 1)
 
         raw_pto = (
             pageTo
@@ -86,10 +100,7 @@ class Evidence:
             if page_to is not None
             else self._page_from
         )
-        try:
-            self._page_to = max(self._page_from, int(float(raw_pto)))
-        except (ValueError, TypeError):
-            self._page_to = self._page_from
+        self._page_to = parse_positive_integer(raw_pto, self._page_from)
 
         raw_text = text if text is not None else content if content is not None else ""
         self._text = str(raw_text)

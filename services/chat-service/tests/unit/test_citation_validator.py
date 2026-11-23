@@ -174,21 +174,32 @@ def test_extract_citation_indices_huge_range_guarded():
 
 def test_build_citations_enforces_openapi_page_and_snippet_rules():
     validator = CitationValidator()
-    ev_empty_text = Evidence(
+    ev_inverted = Evidence(
         evidence_id="ev-empty",
         document_id="doc-1",
         document_name="Regulations.pdf",
         text="",
         page_from=8,
-        page_to=3,  # Invalid: page_to < page_from
+        page_to=3,
         retrieval_score=0.9,
     )
+    assert ev_inverted.page_to == 3
+    with pytest.raises(CitationVerificationFailedException):
+        validator.build_citations("Nguồn [1]", [ev_inverted])
 
-    citations = validator.build_citations("Nguồn [1]", [ev_empty_text])
+    ev_valid = Evidence(
+        evidence_id="ev-valid",
+        document_id="doc-1",
+        document_name="Regulations.pdf",
+        text="",
+        page_from=8,
+        page_to=8,
+        retrieval_score=0.9,
+    )
+    citations = validator.build_citations("Nguồn [1]", [ev_valid])
     assert len(citations) == 1
     cit = citations[0]
 
-    # page_to must be >= page_from
     assert cit.page_from == 8
     assert cit.page_to == 8
     assert cit.page_to >= cit.page_from
@@ -196,6 +207,26 @@ def test_build_citations_enforces_openapi_page_and_snippet_rules():
     # snippet minLength >= 1
     assert len(cit.snippet) > 0
     assert cit.snippet == "Regulations.pdf"
+
+
+def test_build_citations_keeps_large_page_numbers_exact():
+    """A citation preserves integer pages beyond float's exact range."""
+    import json
+
+    large_page = 9007199254740993
+    evidence = Evidence(
+        evidence_id="ev-large",
+        document_id="doc-large",
+        document_name="Large.pdf",
+        text="content",
+        page_from=large_page,
+        page_to=large_page + 1,
+    )
+    citation = CitationValidator().build_citations("Nguồn [1]", [evidence])[0]
+
+    assert citation.page_from == large_page
+    assert citation.page_to == large_page + 1
+    assert json.loads(json.dumps(citation.to_dict()))["page_from"] == large_page
 
 
 def test_extract_citation_indices_asian_brackets():

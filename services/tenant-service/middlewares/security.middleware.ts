@@ -1,3 +1,4 @@
+import { authReason } from "../config/auth-reason.config";
 import { NextFunction, Response } from "express";
 import mongoose from "mongoose";
 import { AccountRequest } from "../interfaces/request.interface";
@@ -92,10 +93,36 @@ export const verifyService = (secretName: string) => {
       secret.length < 32 ||
       !compareSecret(req.get("authorization") || "", "Bearer " + secret)
     ) {
-      res.status(401).json({ code: "error", message: "Service chưa được xác thực!" });
+      res
+        .status(401)
+        .json({
+          code: "error",
+          message: "Service chưa được xác thực!",
+          reasonCode: authReason.SERVICE_CREDENTIAL_INVALID
+        });
       return;
     }
 
     next();
   };
+};
+
+/** Verify forwarded CSRF when present; absence is explicitly reported as unverified. */
+export const verifyContextCsrf = (req: AccountRequest, res: Response, next: NextFunction) => {
+  const token = req.get("x-csrf-token");
+  if (
+    token !== undefined &&
+    (!token || !req.accountUser || !compareSecret(hashToken(token), req.accountUser.csrfHash))
+  ) {
+    res
+      .status(403)
+      .json({
+        code: "error",
+        message: "CSRF token không hợp lệ!",
+        reasonCode: authReason.CSRF_INVALID
+      });
+    return;
+  }
+  res.locals.csrfVerified = token !== undefined;
+  next();
 };

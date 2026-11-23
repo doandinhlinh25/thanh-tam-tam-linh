@@ -27,7 +27,7 @@ export function StudentDocumentsPage({ user, courses, documents, onAddDocument, 
   useEffect(() => () => { if (timerRef.current !== null) window.clearInterval(timerRef.current); }, []);
 
   const selectFile = (file?: File) => {
-    if (!file) return;
+    if (!file || uploading) return;
     const extension = file.name.split(".").pop()?.toLowerCase();
     if (extension !== "pdf" && extension !== "docx") {
       setSelectedFile(null);
@@ -49,7 +49,8 @@ export function StudentDocumentsPage({ user, courses, documents, onAddDocument, 
 
   const startUpload = () => {
     if (uploading) return;
-    if (!selectedFile) { setError("Chọn một tệp trước khi tiếp tục."); return; }
+    const file = selectedFile;
+    if (!file) { setError("Chọn một tệp trước khi tiếp tục."); return; }
     if (!courses.some((course) => course.id === courseId && user.courseIds.includes(course.id))) {
       setError("Chọn một môn học đang được ghi danh trong tài khoản này.");
       return;
@@ -64,8 +65,8 @@ export function StudentDocumentsPage({ user, courses, documents, onAddDocument, 
       if (nextProgress === 100) {
         if (timerRef.current !== null) window.clearInterval(timerRef.current);
         timerRef.current = null;
-        const format = selectedFile.name.toLowerCase().endsWith(".pdf") ? "PDF" : "DOCX";
-        onAddDocument({ name: selectedFile.name, courseId, format, size: readableFileSize(selectedFile.size) });
+        const format = file.name.toLowerCase().endsWith(".pdf") ? "PDF" : "DOCX";
+        onAddDocument({ name: file.name, courseId, format, size: readableFileSize(file.size) });
         setSelectedFile(null);
         if (inputRef.current) inputRef.current.value = "";
         setUploading(false);
@@ -86,10 +87,10 @@ export function StudentDocumentsPage({ user, courses, documents, onAddDocument, 
         <select className="form-control student-upload-course" id="student-upload-course" value={courseId} onChange={(event) => setCourseId(event.target.value)} disabled={uploading}>
           {courses.filter((course) => user.courseIds.includes(course.id)).map((course) => <option key={course.id} value={course.id}>{course.code} · {course.name}</option>)}
         </select>
-        <input ref={inputRef} className="visually-hidden" type="file" tabIndex={-1} accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-label="Chọn tệp PDF hoặc DOCX" onChange={(event) => selectFile(event.currentTarget.files?.[0])} />
-        <div className={`drop-zone student-drop-zone ${selectedFile ? "drop-zone-selected" : ""}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); selectFile(event.dataTransfer.files?.[0]); }}>
+        <input ref={inputRef} className="visually-hidden" type="file" tabIndex={-1} accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-label="Chọn tệp PDF hoặc DOCX" disabled={uploading} onChange={(event) => selectFile(event.currentTarget.files?.[0])} />
+        <div className={`drop-zone student-drop-zone ${selectedFile ? "drop-zone-selected" : ""}`} onDragOver={(event) => { if (!uploading) event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); if (!uploading) selectFile(event.dataTransfer.files?.[0]); }}>
           <span className="drop-zone-icon"><Icon name={selectedFile ? "check" : "upload"} size={21} /></span>
-          {selectedFile ? <><strong>{selectedFile.name}</strong><span>{readableFileSize(selectedFile.size)} · {selectedFile.name.toLowerCase().endsWith(".pdf") ? "PDF" : "DOCX"}</span><button className="inline-link" type="button" disabled={uploading} onClick={() => inputRef.current?.click()}>Đổi tệp</button></> : <><strong>Kéo thả tệp vào đây</strong><span>hoặc <button className="inline-link" type="button" onClick={() => inputRef.current?.click()}>chọn từ thiết bị</button></span><small>PDF hoặc DOCX</small></>}
+          {selectedFile ? <><strong>{selectedFile.name}</strong><span>{readableFileSize(selectedFile.size)} · {selectedFile.name.toLowerCase().endsWith(".pdf") ? "PDF" : "DOCX"}</span><button className="inline-link" type="button" disabled={uploading} onClick={() => inputRef.current?.click()}>Đổi tệp</button></> : <><strong>Kéo thả tệp vào đây</strong><span>hoặc <button className="inline-link" type="button" disabled={uploading} onClick={() => inputRef.current?.click()}>chọn từ thiết bị</button></span><small>PDF hoặc DOCX</small></>}
         </div>
         {error && <p className="field-error" role="alert">{error}</p>}
         {uploading && <div className="upload-progress" role="progressbar" aria-label="Tiến trình mô phỏng" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-valuetext={`${progress}%`}><div className="progress-caption"><span>Đang mô phỏng thao tác; không truyền tệp</span><strong>{progress}%</strong></div><div className="progress-track"><span style={{ width: `${progress}%` }} /></div></div>}

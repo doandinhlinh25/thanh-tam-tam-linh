@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { before, beforeEach, after, test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:net";
+import { createServer as createHttpServer } from "node:http";
 import { spawn, ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import { resolve, join, sep } from "node:path";
@@ -128,7 +129,8 @@ const startService = async (
   url: string,
   port: number,
   uri: string,
-  smtpPort: number
+  smtpPort: number,
+  overrides: Record<string, string> = {}
 ) => {
   const child = spawn(process.execPath, ["--import", "tsx", "index.ts"], {
     cwd: resolve("services", service),
@@ -151,8 +153,12 @@ const startService = async (
           }
         : {}),
       APP_URL: origin,
+      AUTH_MFA_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
+      AUTH_MFA_KEY_ID: "test-key",
+      AUTH_MFA_ISSUER: "Thanh Tam Test",
       SMTP_URL: "smtp://127.0.0.1:" + smtpPort,
-      MAIL_FROM: "platform@example.com"
+      MAIL_FROM: "platform@example.com",
+      ...overrides
     },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true
@@ -165,7 +171,7 @@ const startService = async (
     if (child.exitCode !== null) throw new Error(service + " exited: " + output.join("\n"));
     try {
       const response = await fetch(url + "/health/ready", { signal: AbortSignal.timeout(1000) });
-      if (response.ok) return;
+      if (response.ok) return child;
     } catch {}
     await new Promise((done) => setTimeout(done, 100));
   }
@@ -226,7 +232,7 @@ beforeEach(async () => {
 after(async () => {
   await Promise.all(
     processes.map(async (child) => {
-      if (child.exitCode !== null) return;
+      if (child.exitCode !== null || child.signalCode !== null) return;
       const exited = once(child, "exit");
       child.kill();
       await exited;
@@ -367,7 +373,7 @@ test("Super Admin: env login, middleware permissions, no AccountAdmin document a
   );
   assert.equal(
     (await request(authUrl, "GET", "/admin/account/me", undefined, superSession)).status,
-    200
+    401
   );
 });
 
@@ -464,10 +470,10 @@ test("JWT: duy-tam login/logout, bcrypt, expiry, signature and privilege checks"
   assert.equal(logout.status, 200);
   assert.equal(logout.cookie, "tokenAdmin=");
   assert.ok(logout.setCookie?.includes("Expires=Thu, 01 Jan 1970"));
-  // Như nhánh gốc: logout xóa cookie browser, không lưu blacklist JWT phía server.
+  // Logout thu hồi session server-side theo kế hoạch Auth features đã duyệt.
   assert.equal(
     (await request(authUrl, "GET", "/admin/account/me", undefined, normalUser)).status,
-    200
+    401
   );
   assert.equal(
     (
@@ -725,6 +731,358 @@ test("Tenant: member list, owner settings, student/course ACL and Document autho
     ).status,
     200
   );
+});
+
+test("Chat context: no course, trusted identity, active tenant/membership and optional session-bound CSRF", async () => {
+  const extra = await login("extra");
+  const created = await request(
+    tenantUrl,
+    "POST",
+    "/admin/tenant/create",
+    {
+      name: "No course authorization",
+      code: "no-course-authorization",
+      ownerId: String(users.owner._id)
+    },
+    sessions.admin
+  );
+  assert.equal(created.status, 200);
+  const selected = created.body.tenant._id;
+  assert.equal(
+    (
+      await request(
+        tenantUrl,
+        "POST",
+        "/admin/tenant/" + selected + "/members/add",
+        {
+          userId: String(users.extra._id),
+          role: "student"
+        },
+        sessions.owner
+      )
+    ).status,
+    200
+  );
+  const context = (body: any, user: any = extra, more: Record<string, string> = {}) =>
+    request(tenantUrl, "POST", "/internal/authorization/context", body, user, {
+      Authorization: "Bearer " + chatKey,
+      ...more
+    });
+  const first = await context({ tenantId: selected });
+  assert.equal(first.status, 200);
+  assert.deepEqual(first.body.data, {
+    allowed: true,
+    tenantId: selected,
+    userId: String(users.extra._id),
+    role: "student",
+    csrfVerified: true
+  });
+  assert.equal(first.body.data.csrfHash, undefined);
+  const headerForged = await context({ tenantId: selected }, extra, {
+    "X-User-Id": String(users.owner._id),
+    "X-Tenant-Id": tenantB
+  });
+  assert.equal(headerForged.body.data.userId, String(users.extra._id));
+  assert.equal(headerForged.body.data.tenantId, selected);
+  const withoutCsrf = await context({ tenantId: selected }, { cookie: extra.cookie });
+  assert.equal(withoutCsrf.status, 200);
+  assert.equal(withoutCsrf.body.data.csrfVerified, false);
+  const serverRead = await fetch(tenantUrl + "/internal/authorization/context", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + chatKey,
+      Cookie: extra.cookie!
+    },
+    body: JSON.stringify({ tenantId: selected })
+  });
+  assert.equal(serverRead.status, 200, "Internal context does not require browser Origin");
+  for (const value of ["wrong-csrf", sessions.owner.csrfToken]) {
+    const csrf = await context({ tenantId: selected }, { cookie: extra.cookie, csrfToken: value });
+    assert.equal(csrf.status, 403);
+    assert.equal(csrf.body.reasonCode, "CSRF_INVALID");
+  }
+  for (const selector of [tenantB, new mongoose.Types.ObjectId().toString()]) {
+    const denied = await context({ tenantId: selector });
+    assert.equal(denied.status, 403);
+    assert.equal(denied.body.reasonCode, "TENANT_ACCESS_DENIED");
+  }
+  assert.equal(
+    (await context({ tenantId: selected }, sessions.admin)).status,
+    403,
+    "Platform admin is not implicitly a member"
+  );
+  for (const body of [
+    {},
+    { tenantId: "invalid" },
+    { tenantId: selected, userId: String(users.owner._id) },
+    { tenantId: selected, courseId: courseA }
+  ]) {
+    assert.equal((await context(body)).status, 400);
+  }
+  for (const patch of [{ status: "inactive" }, { status: "revoked" }, { deleted: true }]) {
+    try {
+      await tenantDb
+        .collection("tenant_memberships")
+        .updateOne(
+          { tenantId: new mongoose.Types.ObjectId(selected), userId: users.extra._id },
+          { $set: patch }
+        );
+      const denied = await context({ tenantId: selected });
+      assert.equal(denied.status, 403);
+      assert.equal(denied.body.reasonCode, "TENANT_ACCESS_DENIED");
+    } finally {
+      await tenantDb
+        .collection("tenant_memberships")
+        .updateOne(
+          { tenantId: new mongoose.Types.ObjectId(selected), userId: users.extra._id },
+          { $set: { status: "active", deleted: false } }
+        );
+    }
+  }
+  for (const status of ["inactive", "suspended"]) {
+    assert.equal(
+      (
+        await request(
+          tenantUrl,
+          "PATCH",
+          "/admin/tenant/change-status/" + selected,
+          { status },
+          sessions.admin
+        )
+      ).status,
+      200
+    );
+    assert.equal((await context({ tenantId: selected })).status, 403);
+  }
+  assert.equal(
+    (
+      await request(
+        tenantUrl,
+        "PATCH",
+        "/admin/tenant/change-status/" + selected,
+        { status: "active" },
+        sessions.admin
+      )
+    ).status,
+    200
+  );
+  for (const patch of [{ status: "inactive" }, { deleted: true }, { authVersion: 1 }]) {
+    try {
+      await authDb
+        .collection("accounts-admin")
+        .updateOne({ _id: users.extra._id }, { $set: patch });
+      const denied = await context({ tenantId: selected });
+      assert.equal(denied.status, 401);
+      assert.equal(denied.body.reasonCode, "SESSION_INVALID");
+    } finally {
+      await authDb
+        .collection("accounts-admin")
+        .updateOne(
+          { _id: users.extra._id },
+          { $set: { status: "active", deleted: false, authVersion: 0 } }
+        );
+    }
+  }
+  assert.equal(
+    (await request(tenantUrl, "PATCH", "/admin/tenant/delete/" + selected, {}, sessions.admin))
+      .status,
+    200
+  );
+  assert.equal((await context({ tenantId: selected })).status, 403);
+});
+
+test("Internal authentication reason codes separate bad service credentials from invalid sessions", async () => {
+  const route = "/internal/authorization/context",
+    body = { tenantId: tenantA };
+  const invalidService = await request(tenantUrl, "POST", route, body, undefined, {
+    Authorization: "Bearer wrong-service"
+  });
+  assert.equal(invalidService.status, 401);
+  assert.equal(invalidService.body.reasonCode, "SERVICE_CREDENTIAL_INVALID");
+  const documentOnChat = await request(tenantUrl, "POST", route, body, sessions.owner, {
+    Authorization: "Bearer " + documentKey
+  });
+  assert.equal(documentOnChat.status, 401);
+  assert.equal(documentOnChat.body.reasonCode, "SERVICE_CREDENTIAL_INVALID");
+  const missing = await request(tenantUrl, "POST", route, body, undefined, {
+    Authorization: "Bearer " + chatKey
+  });
+  assert.equal(missing.status, 401);
+  assert.equal(missing.body.reasonCode, "SESSION_INVALID");
+  const claims = jwt.decode(sessions.owner.cookie.slice("tokenAdmin=".length));
+  const expired =
+    "tokenAdmin=" +
+    jwt.sign({ ...claims, exp: Math.floor(Date.now() / 1000) - 1 }, jwtSecret, {
+      algorithm: "HS256"
+    });
+  for (const cookie of ["tokenAdmin=malformed", expired]) {
+    const session = await request(
+      tenantUrl,
+      "POST",
+      route,
+      body,
+      { cookie },
+      { Authorization: "Bearer " + chatKey }
+    );
+    assert.equal(session.status, 401);
+    assert.equal(session.body.reasonCode, "SESSION_INVALID");
+  }
+  const directBadService = await request(
+    authUrl,
+    "POST",
+    "/internal/auth/introspect",
+    {},
+    sessions.owner,
+    { Authorization: "Bearer wrong-service" }
+  );
+  assert.equal(directBadService.status, 401);
+  assert.equal(directBadService.body.reasonCode, "SERVICE_CREDENTIAL_INVALID");
+  const directMissing = await request(authUrl, "POST", "/internal/auth/introspect", {}, undefined, {
+    Authorization: "Bearer " + serviceKey
+  });
+  assert.equal(directMissing.status, 401);
+  assert.equal(directMissing.body.reasonCode, "SESSION_INVALID");
+});
+
+test("Chat feedback uses the existing course ACL and courseId stays mandatory", async () => {
+  const check = (user: any, tenantId = tenantA, courseId = courseA, action = "feedback:write") =>
+    request(
+      tenantUrl,
+      "POST",
+      "/internal/authorization/check",
+      { tenantId, courseId, action },
+      user,
+      { Authorization: "Bearer " + chatKey }
+    );
+  assert.equal((await check(sessions.student)).status, 200);
+  assert.equal((await check(sessions.lecturer)).status, 200);
+  const hidden = await check(sessions.student, tenantA, courseHidden);
+  assert.equal(hidden.status, 403);
+  assert.equal(hidden.body.reasonCode, "COURSE_ACCESS_DENIED");
+  assert.equal((await check(sessions.outsider, tenantB, courseA)).status, 403);
+  assert.equal((await check(sessions.student, tenantA, courseA, "unsupported")).status, 400);
+  assert.equal(
+    (
+      await request(
+        tenantUrl,
+        "POST",
+        "/internal/authorization/check",
+        {
+          tenantId: tenantA,
+          action: "feedback:write"
+        },
+        sessions.student,
+        { Authorization: "Bearer " + chatKey }
+      )
+    ).status,
+    400
+  );
+});
+
+test("Tenant treats Auth credential/protocol failures as dependencies, never as user logout", async () => {
+  const smtpPort = (smtp.address() as { port: number }).port;
+  const wrongPort = await freePort(),
+    wrongUrl = "http://127.0.0.1:" + wrongPort;
+  const wrong = await startService(
+    "tenant-service",
+    wrongUrl,
+    wrongPort,
+    mongo.getUri("tenant_test"),
+    smtpPort,
+    {
+      AUTH_TENANT_TOKEN: "wrong-internal-auth-credential-32-characters"
+    }
+  );
+  try {
+    const response = await request(
+      wrongUrl,
+      "POST",
+      "/internal/authorization/context",
+      { tenantId: tenantA },
+      sessions.owner,
+      { Authorization: "Bearer " + chatKey }
+    );
+    assert.equal(response.status, 503);
+    assert.equal(response.body.reasonCode, "AUTH_SERVICE_CREDENTIAL_INVALID");
+  } finally {
+    wrong.kill();
+  }
+  let upstreamStatus = 401,
+    payload: string = JSON.stringify({ code: "error" });
+  let forwardedCookie = "",
+    forwardedService = "";
+  const upstream = createHttpServer((req, res) => {
+    if (req.url === "/health/ready") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end("{}");
+      return;
+    }
+    forwardedCookie = req.headers.cookie || "";
+    forwardedService = req.headers.authorization || "";
+    res.writeHead(upstreamStatus, { "Content-Type": "application/json" });
+    res.end(payload);
+  });
+  upstream.listen(0, "127.0.0.1");
+  await once(upstream, "listening");
+  const upstreamPort = (upstream.address() as { port: number }).port;
+  const childPort = await freePort(),
+    childUrl = "http://127.0.0.1:" + childPort;
+  const child = await startService(
+    "tenant-service",
+    childUrl,
+    childPort,
+    mongo.getUri("tenant_test"),
+    smtpPort,
+    {
+      AUTH_SERVICE_URL: "http://127.0.0.1:" + upstreamPort
+    }
+  );
+  try {
+    for (const [status, responseBody, expected] of [
+      [401, JSON.stringify({ code: "error" }), "AUTH_RESPONSE_INVALID"],
+      [401, "not-json", "AUTH_RESPONSE_INVALID"],
+      [
+        401,
+        JSON.stringify({ code: "error", reasonCode: "SERVICE_CREDENTIAL_INVALID" }),
+        "AUTH_SERVICE_CREDENTIAL_INVALID"
+      ],
+      [500, JSON.stringify({ code: "error" }), "AUTH_SERVICE_UNAVAILABLE"],
+      [200, JSON.stringify({ code: "success", account: {} }), "AUTH_RESPONSE_INVALID"]
+    ] as const) {
+      upstreamStatus = status;
+      payload = responseBody;
+      const response = await request(
+        childUrl,
+        "POST",
+        "/internal/authorization/context",
+        { tenantId: tenantA },
+        sessions.owner,
+        { Authorization: "Bearer " + chatKey }
+      );
+      assert.equal(response.status, 503);
+      assert.equal(response.body.reasonCode, expected);
+    }
+    assert.ok(forwardedCookie === sessions.owner.cookie, "Original cookie was not forwarded");
+    assert.ok(
+      forwardedService === "Bearer " + serviceKey,
+      "Tenant did not use its own Auth service credential"
+    );
+    await new Promise<void>((resolve) => upstream.close(() => resolve()));
+    const unavailable = await request(
+      childUrl,
+      "POST",
+      "/internal/authorization/context",
+      { tenantId: tenantA },
+      sessions.owner,
+      { Authorization: "Bearer " + chatKey }
+    );
+    assert.equal(unavailable.status, 503);
+    assert.equal(unavailable.body.reasonCode, "AUTH_SERVICE_UNAVAILABLE");
+  } finally {
+    child.kill();
+    if (upstream.listening) await new Promise<void>((resolve) => upstream.close(() => resolve()));
+  }
 });
 
 test("Quota: concurrent requests respect limit; retries are idempotent and bound to user/course", async () => {
@@ -1047,7 +1405,7 @@ test("Auth JWT: logout clears cookie; expiry/reset invalidate JWT; malformed JSO
   );
   assert.equal(
     (await request(authUrl, "GET", "/admin/account/me", undefined, temporary)).status,
-    200
+    401
   );
   const expires = await login("outsider");
   const token = expires.cookie!.slice("tokenAdmin=".length);

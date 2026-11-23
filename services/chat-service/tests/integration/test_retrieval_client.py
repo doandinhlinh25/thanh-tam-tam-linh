@@ -1,14 +1,22 @@
 """Integration tests for RetrievalServiceClient."""
 import pytest
 import httpx
+from unittest.mock import AsyncMock
+from fastapi import FastAPI
+from app.api.error_handlers import register_error_handlers
+from app.ai.pipeline import AIPipeline
 from app.ai.retrieval.client import RetrievalClient
 from app.ai.retrieval.schemas import SearchRequest
 from app.domain.value_objects.evidence import Evidence
+from app.domain.value_objects.tenant_context import TenantContext
 from app.integrations.retrieval_service.exceptions import (
     RetrievalServiceUnavailableException,
     RetrievalTimeoutException,
     RetrievalClientException,
     RetrievalServiceException,
+    RetrievalForbiddenException,
+    RetrievalRateLimitException,
+    RetrievalInvalidResponseException,
 )
 
 
@@ -220,6 +228,153 @@ async def test_retrieval_client_504_gateway_timeout():
     assert exc_info.value.status_code == 504
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "status,exception_type",
+    [
+        (403, RetrievalForbiddenException),
+        (429, RetrievalRateLimitException),
+        (503, RetrievalServiceUnavailableException),
+        (504, RetrievalTimeoutException),
+        (500, RetrievalServiceException),
+    ],
+)
+async def test_retrieval_errors_keep_status_without_leaking_body(status, exception_type):
+    """Upstream technical errors remain distinct and expose no raw response body."""
+    sensitive_body = "tenant-private token=upstream-secret"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(status, text=sensitive_body)
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test-retrieval") as async_client:
+        client = RetrievalClient(http_client=async_client)
+        request = SearchRequest(tenant_id="t1", course_id="c1", actor_user_id="u1", query="test")
+        with pytest.raises(exception_type) as exc_info:
+            await client.search(request)
+
+    assert exc_info.value.status_code == status
+    assert sensitive_body not in exc_info.value.message
+    assert sensitive_body not in str(exc_info.value.details)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"successful": True, "data": {}},
+        {"successful": True, "data": {"candidates": None}},
+        {"successful": True, "data": {"candidates": [{}]}},
+        {"unexpected": "tenant-private"},
+    ],
+)
+async def test_retrieval_malformed_200_is_technical_error(body):
+    """A malformed HTTP 200 cannot become an empty-evidence result."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=body)
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test-retrieval") as async_client:
+        client = RetrievalClient(http_client=async_client)
+        request = SearchRequest(tenant_id="t1", course_id="c1", actor_user_id="u1", query="test")
+        with pytest.raises(RetrievalInvalidResponseException) as exc_info:
+            await client.search(request)
+
+    assert exc_info.value.status_code == 502
+    assert "tenant-private" not in exc_info.value.message
+
+
+@pytest.mark.asyncio
+async def test_retrieval_non_json_200_is_technical_error():
+    """Invalid JSON returned with HTTP 200 is a sanitized upstream failure."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="tenant-private token=upstream-secret")
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test-retrieval") as async_client:
+        client = RetrievalClient(http_client=async_client)
+        request = SearchRequest(tenant_id="t1", course_id="c1", actor_user_id="u1", query="test")
+        with pytest.raises(RetrievalInvalidResponseException) as exc_info:
+            await client.search(request)
+
+    assert exc_info.value.status_code == 502
+    assert "upstream-secret" not in exc_info.value.message
+
+
+@pytest.mark.asyncio
+async def test_retrieval_error_envelope_does_not_expose_upstream_body():
+    """The existing API error handler serializes only sanitized retrieval data."""
+    sensitive_body = "tenant-private token=upstream-secret"
+    upstream = httpx.MockTransport(lambda request: httpx.Response(503, text=sensitive_body))
+    api = FastAPI()
+    register_error_handlers(api)
+
+    @api.get("/probe")
+    async def probe():
+        """Exercise retrieval failure through the existing API error handler."""
+        async with httpx.AsyncClient(transport=upstream, base_url="http://test-retrieval") as upstream_client:
+            retrieval = RetrievalClient(http_client=upstream_client)
+            request = SearchRequest(tenant_id="t1", course_id="c1", actor_user_id="u1", query="test")
+            await retrieval.search(request)
+
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api), base_url="http://test") as client:
+        response = await client.get("/probe")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "RETRIEVAL_SERVICE_UNAVAILABLE"
+    assert sensitive_body not in response.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("candidate_fields", [
+    {
+        "evidenceId": "ev-incomplete",
+        "documentId": "doc-incomplete",
+        "text": "tenant-private-secret",
+        "retrievalScore": 0.9,
+    },
+    {
+        "evidenceId": "ev-inverted",
+        "chunkId": "chunk-inverted",
+        "documentId": "doc-inverted",
+        "documentVersion": 1,
+        "documentName": "Doc.pdf",
+        "pageFrom": 3,
+        "pageTo": 2,
+        "text": "tenant-private-secret",
+        "retrievalScore": 0.9,
+    },
+])
+async def test_malformed_candidate_returns_technical_response_before_llm(candidate_fields):
+    """A malformed HTTP candidate raises 502 without LLM use or data disclosure."""
+    sensitive_marker = "tenant-private-secret"
+    upstream_body = {
+        "successful": True,
+        "data": {"candidates": [candidate_fields]},
+    }
+    upstream = httpx.MockTransport(lambda request: httpx.Response(200, json=upstream_body))
+    mock_llm = AsyncMock()
+    api = FastAPI()
+    register_error_handlers(api)
+
+    @api.get("/probe-malformed")
+    async def probe_malformed():
+        """Run the existing pipeline against a mocked malformed retrieval response."""
+        async with httpx.AsyncClient(transport=upstream, base_url="http://test-retrieval") as upstream_client:
+            retrieval = RetrievalClient(http_client=upstream_client)
+            pipeline = AIPipeline(retrieval_client=retrieval, llm_provider=mock_llm)
+            context = TenantContext(tenant_id="t1", user_id="u1", course_id="c1")
+            await pipeline.run(user_query="test", tenant_context=context)
+
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=api), base_url="http://test") as client:
+        response = await client.get("/probe-malformed")
+
+    assert response.status_code == 502
+    assert response.json()["error"]["code"] == "RETRIEVAL_INVALID_RESPONSE"
+    assert sensitive_marker not in response.text
+    mock_llm.generate.assert_not_called()
+
+
 # --- Real Network Socket Integration Tests (Deep Socket Verification) ---
 
 import threading
@@ -291,7 +446,7 @@ class _LiveRetrievalHttpServer:
 
 @pytest.mark.asyncio
 async def test_retrieval_client_live_tcp_socket_search_success():
-    """Verify RetrievalClient successfully communicates with Document Service over real TCP network socket."""
+    """Verify RetrievalClient against a local mock TCP server, not Document Service."""
     with _LiveRetrievalHttpServer() as live_server:
         client = RetrievalClient(base_url=f"http://127.0.0.1:{live_server.port}", timeout=5.0)
         req = SearchRequest(

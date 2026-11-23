@@ -155,6 +155,54 @@ class UploadServiceImplTest {
         verify(repository, never()).markQueued(any(Documents.class));
     }
 
+    @Test
+    void retriesUploadedRecordWithoutStoringAgain() {
+        AuthorizedUploader uploader = new AuthorizedUploader(TENANT_ID, USER_ID);
+        Documents uploaded = existingRecord(DocumentContract.UPLOADED);
+        when(repository.findByTenantIdAndCourseIdAndUploaderUserIdAndIdempotencyKey(
+                TENANT_ID, COURSE_ID, USER_ID, KEY)).thenReturn(Optional.of(uploaded));
+        when(repository.markQueued(uploaded)).thenReturn(withStatus(uploaded, DocumentContract.QUEUED));
+        Documents result = service.upload(COURSE_ID, KEY, FILE_NAME, PDF_BYTES, uploader);
+        assertEquals(DocumentContract.QUEUED, result.status());
+        verify(queue).enqueue(uploaded);
+        verify(repository).markQueued(uploaded);
+        verify(objectStore, never()).put(any(), any());
+        verify(repository, never()).createIfAbsent(any(Documents.class));
+    }
+
+    @Test
+    void storageFailurePreventsMetadataAndQueueWrites() {
+        AuthorizedUploader uploader = new AuthorizedUploader(TENANT_ID, USER_ID);
+        doThrow(new IllegalStateException("storage unavailable")).when(objectStore).put(any(), any());
+        assertThrows(IllegalStateException.class,
+                () -> service.upload(COURSE_ID, KEY, FILE_NAME, PDF_BYTES, uploader));
+        verify(repository, never()).createIfAbsent(any(Documents.class));
+        verify(queue, never()).enqueue(any(Documents.class));
+    }
+
+    @Test
+    void preservesDatabaseFailureWhenCleanupAlsoFails() {
+        AuthorizedUploader uploader = new AuthorizedUploader(TENANT_ID, USER_ID);
+        IllegalStateException databaseError = new IllegalStateException("database unavailable");
+        when(repository.createIfAbsent(any(Documents.class))).thenThrow(databaseError);
+        doThrow(new IllegalStateException("cleanup unavailable")).when(objectStore).remove(any());
+        IllegalStateException result = assertThrows(IllegalStateException.class,
+                () -> service.upload(COURSE_ID, KEY, FILE_NAME, PDF_BYTES, uploader));
+        assertEquals(databaseError, result);
+        assertEquals(1, result.getSuppressed().length);
+        verify(queue, never()).enqueue(any(Documents.class));
+    }
+
+    @Test
+    void surfacesCleanupFailureAfterConcurrentInsertWithoutQueueing() {
+        AuthorizedUploader uploader = new AuthorizedUploader(TENANT_ID, USER_ID);
+        when(repository.createIfAbsent(any(Documents.class))).thenReturn(null);
+        doThrow(new IllegalStateException("cleanup unavailable")).when(objectStore).remove(any());
+        assertThrows(IllegalStateException.class,
+                () -> service.upload(COURSE_ID, KEY, FILE_NAME, PDF_BYTES, uploader));
+        verify(queue, never()).enqueue(any(Documents.class));
+    }
+
     private Documents existingRecord(String status) {
         return new Documents("document-a", TENANT_ID, COURSE_ID, USER_ID, KEY, FILE_NAME, PDF_BYTES.length,
                 "275904d2c62c45e21f420f0e323ec3518a0c6223623ed1f89b9d1ebd9a5ddff3", "private-key",
